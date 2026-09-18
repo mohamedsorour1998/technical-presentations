@@ -1,0 +1,31 @@
+{
+  "machine": {
+    "chip": "Apple M4",
+    "memory_gib": 16,
+    "macos": "26.6.2",
+    "model": "mlx-community/Qwen3.5-4B-MLX-4bit"
+  },
+  "results": [
+    {
+      "prompt": "short",
+      "prompt_tokens": 20,
+      "completion_tokens": 120,
+      "wall_seconds": 4.35,
+      "tokens_per_second_overall": 32.2
+    },
+    {
+      "prompt": "medium",
+      "prompt_tokens": 30,
+      "completion_tokens": 120,
+      "wall_seconds": 3.88,
+      "tokens_per_second_overall": 38.6
+    },
+    {
+      "prompt": "long-context",
+      "prompt_tokens": 2728,
+      "completion_tokens": 120,
+      "wall_seconds": 11.7,
+      "tokens_per_second_overall": 243.5
+    }
+  ]
+}

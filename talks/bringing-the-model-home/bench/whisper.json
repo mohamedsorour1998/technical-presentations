@@ -1,0 +1,32 @@
+{
+  "machine": {
+    "chip": "Apple M4",
+    "memory_gib": 16,
+    "macos": "26.6.2",
+    "model": "mlx-community/whisper-large-v3-mlx"
+  },
+  "results": [
+    {
+      "clip": "demo-30s.wav",
+      "audio_seconds": 30.0,
+      "runs_seconds": [
+        9.41,
+        8.56
+      ],
+      "cold_seconds": 9.41,
+      "warm_seconds": 8.56,
+      "warm_realtime_factor": 3.5
+    },
+    {
+      "clip": "demo-60s.wav",
+      "audio_seconds": 60.0,
+      "runs_seconds": [
+        12.34,
+        13.4
+      ],
+      "cold_seconds": 12.34,
+      "warm_seconds": 13.4,
+      "warm_realtime_factor": 4.48
+    }
+  ]
+}

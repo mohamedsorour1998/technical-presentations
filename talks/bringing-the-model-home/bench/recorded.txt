@@ -1,0 +1,10 @@
+So QEM 3.8 27 billion parameter local AI model has been out for a few days now and I've been
+testing it to see what it is capable of and I've been surprised on how well it is performing
+especially compared to the models that we had what just a few weeks ago this is another major step
+change in what you can achieve locally on local hardware without having to send everything up into
+the cloud that's the topic of today's video so if you want to find out more please let me explain
+so quen 3.8 is a 27 billion parameter model now it's full size at 16-bit floating point numbers
+it's a 55 gigabyte download and you're probably going to need 128 gigabytes of ram to run it which
+is beyond what most people have that's vram beyond what most people have kind of at home even with a
+a very good gaming setup. However if you do have something like an RTX 5090 or something else with
+32 gigabits.

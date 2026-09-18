@@ -1,0 +1,22 @@
+# Build environment — recreate with the two commands in CLAUDE.md
+.venv-deck/
+__pycache__/
+*.pyc
+
+# Model weights and trained adapters. Large, and regenerable from the commands in the
+# talk's build script: mlx_lm.convert for the quantized model, mlx_lm.lora for adapters.
+talks/*/models/
+talks/*/adapters*/
+
+# Source media. Transcripts are kept; the audio and video they came from are not ours
+# to redistribute.
+*.mp3
+*.mp4
+*.m4a
+*.wav
+*.mov
+!talks/*/pitch/video/*.mp4
+
+# Scratch
+.DS_Store
+*.log

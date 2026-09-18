@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<!--
+  A LIVE PREVIEW OF THE DECK'S DESIGN, not the deck itself.
+
+  OWNER: Sorour. Serve it with:
+
+      python3 -m http.server 8412 --directory pitch/preview
+
+  ...and open http://localhost:8412/. Reload after any change.
+
+  WHY THIS EXISTS. The deck is a generated .pptx, and the loop "edit make_deck.py ->
+  regenerate -> open PowerPoint -> squint" is far too slow to design in. This renders the
+  same palette, type scale and slide geometry as HTML at the same 16:9 ratio, so a colour
+  or a spacing decision takes one reload instead of a rebuild.
+
+  IT IS A DESIGN MIRROR, NOT A SOURCE OF TRUTH. scripts/make_deck.py builds the file that
+  gets presented. Anything agreed here has to be carried across by hand -- the palette
+  block below and the one in make_deck.py are the two places a colour lives, and they
+  must be changed together.
+
+  EVERY NUMBER ON THESE SLIDES WAS MEASURED ON THE PRESENTING MACHINE. The commands are
+  in scripts/bench_whisper.py and scripts/bench_lm.py; the raw output is in bench/*.json.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Bringing the Model Home — deck preview</title>
+<style>
+  /* ── the palette. Change here, then mirror into scripts/make_deck.py ────────── */
+  :root {
+    --void:   #0A0C10;   /* the page behind the slides */
+    --slate:  #14181F;   /* the slide surface: near-black, a hint of blue */
+    --raised: #1C2230;   /* cards and panels that sit above the surface */
+    --line:   #2A3242;   /* hairlines and borders */
+    --ink:    #E8EDF4;   /* primary text */
+    --dim:    #8A94A6;   /* secondary text */
+    --cyan:   #4FD1C5;   /* structure: kickers, rules, the stack */
+    --rose:   #FF6B6B;   /* the failure state */
+    --mint:   #4ADE80;   /* the success state */
+    --mono: ui-monospace, "SF Mono", Menlo, monospace;
+    --sans: -apple-system, "Helvetica Neue", Inter, system-ui, sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; }
+  body {
+    background: var(--void); color: var(--ink); font-family: var(--sans);
+    padding: 40px 20px 80px; -webkit-font-smoothing: antialiased;
+  }
+  header { max-width: 1120px; margin: 0 auto 28px; }
+  header h1 { font-size: 15px; letter-spacing: .14em; color: var(--cyan); font-weight: 700; }
+  header p  { font-size: 13px; color: var(--dim); margin-top: 6px; line-height: 1.5; }
+
+  /* 16:9 at the deck's real ratio, so what fits here fits there. */
+  .slide {
+    width: 1120px; height: 630px; margin: 0 auto 30px; position: relative;
+    background: var(--slate); border: 1px solid var(--line); border-radius: 6px;
+    overflow: hidden; padding: 62px 92px;
+  }
+  .slide::before {                     /* the left band, the deck's one ornament */
+    content: ""; position: absolute; inset: 0 auto 0 0; width: 6px; background: var(--cyan);
+  }
+  .slide.rose::before { background: var(--rose); }
+  .slide.mint::before { background: var(--mint); }
+  .slide.plain::before { display: none; }
+
+  .num { position: absolute; right: 34px; bottom: 26px; font-size: 12px; color: var(--dim); }
+
+  .kicker { font-size: 12px; letter-spacing: .16em; color: var(--cyan); font-weight: 700; }
+  h2 { font-size: 40px; line-height: 1.1; margin-top: 16px; letter-spacing: -.015em; }
+  h2.big { font-size: 54px; }
+  .rule { width: 76px; height: 3px; background: var(--cyan); margin: 22px 0 30px; }
+  .rule.rose { background: var(--rose); }
+  .rule.mint { background: var(--mint); }
+  ul { list-style: none; padding: 0; }
+  li { font-size: 21px; line-height: 1.45; color: var(--ink); margin-bottom: 18px; }
+  .lead { font-size: 22px; color: var(--dim); line-height: 1.5; }
+  .note { font-size: 18px; color: var(--cyan); line-height: 1.5; margin-top: 26px; }
+
+  .stat { font-size: 44px; font-weight: 700; letter-spacing: -.02em; }
+  .stat.rose { color: var(--rose); }
+  .stat.mint { color: var(--mint); }
+  .stat-label { font-size: 15px; color: var(--dim); margin-top: 8px; line-height: 1.4; }
+  .stat-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 40px; margin-top: 40px; }
+
+  /* ── the four-layer stack, drawn bottom-up like the WWDC diagram ───────────── */
+  .stack { margin-top: 30px; }
+  .layer {
+    border: 1px solid var(--line); background: var(--raised); border-radius: 4px;
+    padding: 14px 22px; margin-bottom: 10px; display: grid;
+    grid-template-columns: 210px 1fr; gap: 24px; align-items: baseline;
+  }
+  .layer.top { border-color: var(--cyan); background: rgba(79,209,197,.06); }
+  .layer b { font-size: 17px; font-family: var(--mono); color: var(--cyan); letter-spacing: .02em; }
+  .layer span { font-size: 16px; color: var(--dim); }
+
+  /* the numbered list used for agenda and decision rules */
+  .steps { margin-top: 28px; }
+  .step { display: grid; grid-template-columns: 44px 1fr 1fr; gap: 18px; align-items: baseline; margin-bottom: 16px; }
+  .step .i { font-size: 18px; font-weight: 700; color: var(--cyan); font-family: var(--mono); }
+  .step .t { font-size: 19px; font-weight: 600; }
+  .step .d { font-size: 16px; color: var(--dim); }
+
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 60px; }
+  .verdict { font-size: 25px; font-weight: 700; letter-spacing: .04em; margin-bottom: 16px; }
+  .verdict.mint { color: var(--mint); }
+  .verdict.rose { color: var(--rose); }
+  .verdict + p { font-size: 18px; line-height: 1.55; }
+
+  /* the terminal card: what the audience sees during a demo. NOT source code -- a
+     command they will retype, which is a different thing and belongs on screen. */
+  .term {
+    background: #07090C; border: 1px solid var(--line); border-radius: 5px;
+    padding: 20px 24px; font-family: var(--mono); font-size: 16px; line-height: 1.7;
+    margin-top: 26px; color: var(--ink);
+  }
+  .term .p { color: var(--cyan); }
+  .term .c { color: var(--dim); }
+
+  /* the sizing table */
+  table { width: 100%; border-collapse: collapse; margin-top: 26px; }
+  th, td { text-align: left; padding: 11px 14px; font-size: 17px; border-bottom: 1px solid var(--line); }
+  th { font-size: 12px; letter-spacing: .12em; color: var(--cyan); text-transform: uppercase; font-weight: 700; }
+  td.n { font-family: var(--mono); color: var(--dim); }
+  tr.me td { background: rgba(79,209,197,.07); }
+  tr.me td:first-child { color: var(--cyan); font-weight: 700; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>BRINGING THE MODEL HOME — DECK PREVIEW</h1>
+  <p>Dark scheme, 16:9 at deck geometry. Design mirror — the presented file is built by
+     <code>scripts/make_deck.py</code> and has <b>20 slides</b>; this page carries a
+     representative subset so a colour or spacing decision takes one reload. Every figure
+     is measured on the presenting Mac (M4, 16 GiB).</p>
+</header>
+
+<!-- 1 · title -->
+<div class="slide">
+  <h2 class="big" style="margin-top:118px">BRINGING THE<br>MODEL HOME</h2>
+  <div class="rule" style="width:120px"></div>
+  <p class="lead">Running real AI workloads on the laptop in front of you —<br>
+     and knowing which ones not to.</p>
+  <p style="position:absolute;bottom:66px;font-size:14px;color:var(--dim)">
+     Mohamed Sorour &nbsp;·&nbsp; Senior DevOps Engineer, Vezeeta &nbsp;·&nbsp;
+     DevOpsDays Cairo, 2026</p>
+  <div class="num">1</div>
+</div>
+
+<!-- 2 · the hook -->
+<div class="slide plain">
+  <div class="kicker">WHY BOTHER</div>
+  <h2>The bill is the hook.<br>It is not the reason.</h2>
+  <div class="rule"></div>
+  <ul>
+    <li>Everyone starts here: the invoice went up and the meter never stops.</li>
+    <li>But cost alone is a weak argument — inference keeps getting cheaper.</li>
+    <li>The durable reason is <b>control</b>: over your data, and over your dependencies.</li>
+  </ul>
+  <p class="note">This talk is the second argument, not the first.</p>
+  <div class="num">2</div>
+</div>
+
+<!-- 3 · why this is a DevOps talk -->
+<div class="slide plain">
+  <div class="kicker">THE ARGUMENT</div>
+  <h2>Four reasons that are operational,<br>not ideological</h2>
+  <div class="rule"></div>
+  <div class="steps" style="margin-top:24px">
+    <div class="step"><div class="i">01</div><div class="t">The data cannot leave</div><div class="d">regulated work, client IP, an approval process you will not win</div></div>
+    <div class="step"><div class="i">02</div><div class="t">No rate limit, no queue</div><div class="d">the machine is yours; batch a thousand files overnight</div></div>
+    <div class="step"><div class="i">03</div><div class="t">It still runs offline</div><div class="d">the flight, the site visit, the outage</div></div>
+    <div class="step"><div class="i">04</div><div class="t">Nobody deprecates it</div><div class="d">a local model does not get retired underneath you</div></div>
+  </div>
+  <p class="note">Reason 04 broke a tool of mine while I was building this talk. I will show
+     you the error.</p>
+  <div class="num">3</div>
+</div>
+
+<!-- 4 · agenda -->
+<div class="slide plain">
+  <div class="kicker">AGENDA</div>
+  <h2>Thirty minutes, five parts</h2>
+  <div class="rule"></div>
+  <div class="steps" style="margin-top:30px">
+    <div class="step"><div class="i">01</div><div class="t">How the stack fits together</div><div class="d">four layers, one of them is your GPU</div></div>
+    <div class="step"><div class="i">02</div><div class="t">Demo: speech to text, offline</div><div class="d">wifi off, on this laptop, with real timings</div></div>
+    <div class="step"><div class="i">03</div><div class="t">What went wrong</div><div class="d">a failure mode, and the gate that catches it</div></div>
+    <div class="step"><div class="i">04</div><div class="t">Demo: a local agent loop</div><div class="d">a model that calls tools on my filesystem</div></div>
+    <div class="step"><div class="i">05</div><div class="t">Where local loses, and the rule</div><div class="d">how to decide, per workload</div></div>
+  </div>
+  <div class="num">4</div>
+</div>
+
+<!-- 5 · the stack -->
+<div class="slide plain">
+  <div class="kicker">THE STACK</div>
+  <h2>Four layers, bottom to top</h2>
+  <div class="rule"></div>
+  <div class="stack">
+    <div class="layer top"><b>your agent</b><span>anything speaking the OpenAI chat protocol — Claude Code, OpenCode, Xcode, curl</span></div>
+    <div class="layer"><b>mlx_lm.server</b><span>an OpenAI-compatible HTTP server on localhost. Tool calling, streaming</span></div>
+    <div class="layer"><b>mlx-lm</b><span>load, run, quantize and fine-tune language models</span></div>
+    <div class="layer"><b>mlx</b><span>Apple's array framework — Metal kernels, unified memory</span></div>
+  </div>
+  <p class="note">Swap the base URL and the agent cannot tell the difference. That is the
+     whole integration story.</p>
+  <div class="num">5</div>
+</div>
+
+<!-- 6 · unified memory -->
+<div class="slide">
+  <div class="kicker">THE ONE IDEA</div>
+  <h2>Unified memory is why a laptop<br>can do this at all</h2>
+  <div class="rule"></div>
+  <div class="two" style="margin-top:10px">
+    <div>
+      <div class="verdict rose">DISCRETE GPU</div>
+      <p>Model weights live in VRAM.<br>
+         Copy across PCIe to use them.<br>
+         Far more bandwidth — but you get<br>
+         12, 16, 24 GB and then you stop.</p>
+    </div>
+    <div>
+      <div class="verdict mint">APPLE SILICON</div>
+      <p>CPU and GPU share the same bytes.<br>
+         No copy, ever.<br>
+         Less bandwidth — but the ceiling is<br>
+         however much RAM you bought.</p>
+    </div>
+  </div>
+  <p class="note">Generation speed is a memory-bandwidth problem. Model <i>size</i> is a
+     capacity problem. Apple trades the first for the second — and capacity is what
+     decides whether a model runs at all.</p>
+  <div class="num">6</div>
+</div>
+
+<!-- 7 · DEMO 1 -->
+<div class="slide">
+  <div class="kicker">DEMO ONE</div>
+  <h2>Speech to text, wifi off</h2>
+  <div class="rule"></div>
+  <div class="term">
+    <div><span class="c"># 2.9 GiB of Whisper large-v3, already on disk</span></div>
+    <div><span class="p">$</span> mlx_whisper clips/demo-60s.wav \</div>
+    <div>&nbsp;&nbsp;&nbsp;&nbsp;--model mlx-community/whisper-large-v3-mlx \</div>
+    <div>&nbsp;&nbsp;&nbsp;&nbsp;--condition-on-previous-text False</div>
+  </div>
+  <div class="stat-row" style="grid-template-columns:repeat(3,1fr);margin-top:34px">
+    <div>
+      <div class="stat mint">6.5&times;</div>
+      <div class="stat-label">faster than realtime<br>a 6-min talk in 55 s</div>
+    </div>
+    <div>
+      <div class="stat">2.9<span style="font-size:26px"> GiB</span></div>
+      <div class="stat-label">the entire model,<br>on local disk</div>
+    </div>
+    <div>
+      <div class="stat">0</div>
+      <div class="stat-label">bytes leaving<br>this machine</div>
+    </div>
+  </div>
+  <div class="num">7</div>
+</div>
+
+<!-- 8 · the war story -->
+<div class="slide rose">
+  <h2 class="big" style="margin-top:74px">It ran fine, and<br>the output was wrong.</h2>
+  <div class="rule rose"></div>
+  <ul>
+    <li>Exit code 0. No warning. A plausible-looking transcript.</li>
+    <li>One 12-word phrase repeated <b>19 times</b> — the decoder had latched onto its own output.</li>
+    <li>Fix: <span style="font-family:var(--mono);font-size:19px">--condition-on-previous-text False</span></li>
+  </ul>
+  <p class="note" style="color:var(--ink)">Local inference has operational failure modes.
+     So it needs a validation gate, like anything else you put in a pipeline.</p>
+  <div class="num">8</div>
+</div>
+
+<!-- 9 · the gate -->
+<div class="slide plain">
+  <div class="kicker">THE GATE</div>
+  <h2>Fifteen lines that would have<br>caught it</h2>
+  <div class="rule"></div>
+  <p class="lead" style="font-size:20px">Count every 12-word phrase in the output. If any
+     appears more than twice, fail the run.</p>
+  <div class="term" style="font-size:17px">
+    <div><span class="p">$</span> python3 scripts/check_transcript.py bench/demo-60s.txt</div>
+    <div><span style="color:var(--mint)">transcript repetition check passed</span></div>
+    <div>&nbsp;</div>
+    <div><span class="p">$</span> python3 scripts/check_transcript.py contaminated.txt</div>
+    <div><span style="color:var(--rose)">FAIL: phrase repeated 19 times</span></div>
+  </div>
+  <p class="note">A model you host is infrastructure. Infrastructure gets a health check.</p>
+  <div class="num">9</div>
+</div>
+
+<!-- 10 · DEMO 2 -->
+<div class="slide">
+  <div class="kicker">DEMO TWO</div>
+  <h2>A local model, calling tools</h2>
+  <div class="rule"></div>
+  <div class="term">
+    <div><span class="c"># terminal 1 — the server, pre-warmed before I walked up</span></div>
+    <div><span class="p">$</span> mlx_lm.server --model mlx-community/Qwen3.5-4B-MLX-4bit --port 8080</div>
+    <div>&nbsp;</div>
+    <div><span class="c"># terminal 2 — the agent, pointed at localhost</span></div>
+    <div><span class="p">$</span> export OPENAI_BASE_URL=http://127.0.0.1:8080/v1</div>
+  </div>
+  <ul style="margin-top:30px">
+    <li>The agent asks the model what to do. The model names a tool. The agent runs it.</li>
+    <li>That loop is the whole idea — and every turn of it is on this laptop.</li>
+  </ul>
+  <div class="num">10</div>
+</div>
+
+<!-- 11 · the honest ceiling -->
+<div class="slide plain">
+  <div class="kicker">THE CEILING</div>
+  <h2>Where local loses. Plainly.</h2>
+  <div class="rule"></div>
+  <ul>
+    <li><b>Hard, long tasks.</b> A published test had a local model produce 47 compile errors, retry, then give up.</li>
+    <li><b>Speed.</b> Roughly 5&times; slower to finish the same agentic task than a frontier model.</li>
+    <li><b>Size.</b> 16 GB is shared with your OS. The good coding models do not fit.</li>
+    <li><b>Your time.</b> Smaller models need smaller, better-specified tasks.</li>
+  </ul>
+  <p class="note">If I claimed this replaced a frontier model, the first person to try it
+     would find out I was wrong. It does not. It does something else.</p>
+  <div class="num">11</div>
+</div>
+
+<!-- 12 · the decision rule -->
+<div class="slide mint">
+  <div class="kicker">THE RULE</div>
+  <h2>Bring it home when three<br>things are true</h2>
+  <div class="rule mint"></div>
+  <div class="steps" style="margin-top:24px">
+    <div class="step"><div class="i">01</div><div class="t">The task is narrow</div><div class="d">transcribe, extract, classify, summarize, redact — not "architect this"</div></div>
+    <div class="step"><div class="i">02</div><div class="t">The volume is high, or the data is sensitive</div><div class="d">either one alone is enough</div></div>
+    <div class="step"><div class="i">03</div><div class="t">You can check the output</div><div class="d">a gate, like slide 9 — otherwise you are guessing</div></div>
+  </div>
+  <p class="note" style="color:var(--ink)">Everything else: keep sending it out. This is a
+     routing decision per workload, not a migration.</p>
+  <div class="num">12</div>
+</div>
+
+<!-- 13 · start now + thanks -->
+<div class="slide">
+  <div class="kicker">START</div>
+  <h2>Three commands, ten minutes</h2>
+  <div class="rule"></div>
+  <div class="term">
+    <div><span class="p">$</span> pip install mlx-whisper mlx-lm</div>
+    <div><span class="p">$</span> mlx_lm.server --model mlx-community/Qwen3.5-4B-MLX-4bit</div>
+    <div><span class="p">$</span> export OPENAI_BASE_URL=http://127.0.0.1:8080/v1</div>
+  </div>
+  <p class="lead" style="margin-top:34px">Every command appears on screen in the
+     recordings embedded in the deck.</p>
+  <p style="position:absolute;bottom:64px;font-size:17px;color:var(--dim)">
+     Mohamed Sorour &nbsp;·&nbsp; <span style="color:var(--cyan)">questions welcome</span></p>
+  <div class="num">13</div>
+</div>
+
+</body>
+</html>

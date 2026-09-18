@@ -1,0 +1,63 @@
+{
+  "opencode run How many words are in bench/full-6min.txt?": {
+    "output": "\n> build \u00b7 mlx-community/Qwen3.5-4B-MLX-4bit\n\n$ wc -w /Users/sorour/sorour/BringingtheModelHome/bench/full-6min.txt\n1090 /Users/sorour/sorour/BringingtheModelHome/bench/full-6min.txt\n\nThere are 1,090 words in bench/full-6min.txt.\n",
+    "elapsed": 65.1,
+    "recorded": "2026-09-18 07:19:00",
+    "note": "captured from a completed run; preserved because the server is unstable"
+  },
+  "./calc.sh 5 + 3": {
+    "output": "8\n",
+    "elapsed": 0.016960874999995212,
+    "recorded": "2026-09-18 07:43:07"
+  },
+  "./calc.sh 9 - 2": {
+    "output": "7\n",
+    "elapsed": 0.003902665999930832,
+    "recorded": "2026-09-18 07:43:07"
+  },
+  "./calc.sh 20 / 4": {
+    "output": "5\n",
+    "elapsed": 0.003448917000014262,
+    "recorded": "2026-09-18 07:43:07"
+  },
+  "./calc.sh 6 x 7": {
+    "output": "67\n",
+    "elapsed": 0.004181165999966652,
+    "recorded": "2026-09-18 07:43:07"
+  },
+  "zsh -c du -sh ~/.cache/huggingface/hub/models--mlx-community--Qwen3-0.6B-bf16 | cut -f1": {
+    "output": "1.1G\n",
+    "elapsed": 0.012892125000007582,
+    "recorded": "2026-09-18 07:46:22"
+  },
+  "zsh -c du -sh models/qwen3-0.6b-4bit | cut -f1": {
+    "output": "331M\n",
+    "elapsed": 0.006757583000080558,
+    "recorded": "2026-09-18 07:46:22"
+  },
+  "/opt/homebrew/bin/mlx_lm.generate --model models/qwen3-0.6b-4bit --prompt What is 2+2? Answer with just the number. --chat-template-config {\"enable_thinking\": false} --max-tokens 20": {
+    "output": "==========\n2 + 2 = 4\n==========\nPrompt: 25 tokens, 694.285 tokens-per-sec\nGeneration: 8 tokens, 253.349 tokens-per-sec\nPeak memory: 0.441 GB\n",
+    "elapsed": 2.5446352909998495,
+    "recorded": "2026-09-18 07:46:25"
+  },
+  "/opt/homebrew/bin/mlx_lm.generate --model models/qwen3-0.6b-4bit --prompt Who gave the talk Bringing the Model Home? --chat-template-config {\"enable_thinking\": false} --max-tokens 45": {
+    "output": "==========\nThe question \"Who gave the talk 'Bringing the Model Home'?\" is likely referring to the speaker or presenter of the talk. However, without more context or specific details about the talk itself, it's difficult to provide\n==========\nPrompt: 21 tokens, 579.804 tokens-per-sec\nGeneration: 45 tokens, 224.098 tokens-per-sec\nPeak memory: 0.425 GB\n",
+    "elapsed": 1.473858584000027,
+    "recorded": "2026-09-18 07:46:28"
+  },
+  "/opt/homebrew/bin/mlx_lm.lora --model models/qwen3-0.6b-4bit --train --data data --iters 100 --batch-size 4 --num-layers 8 --learning-rate 2e-4 --mask-prompt --adapter-path adapters-0.6b --steps-per-eval 50": {
+    "output": "Loading pretrained model\nLoading datasets\nTraining\nTrainable parameters: 0.242% (1.442M/596.050M)\nStarting training..., iters: 100\nIter 1: Val loss 4.167, Val took 0.305s\nIter 10: Train loss 2.749, Learning Rate 2.000e-04, It/sec 2.698, Tokens/sec 582.274, Trained Tokens 2158, Peak mem 1.398 GB\nIter 20: Train loss 0.598, Learning Rate 2.000e-04, It/sec 2.711, Tokens/sec 585.002, Trained Tokens 4316, Peak mem 1.431 GB\nIter 30: Train loss 0.239, Learning Rate 2.000e-04, It/sec 2.705, Tokens/sec 583.680, Trained Tokens 6474, Peak mem 1.431 GB\nIter 40: Train loss 0.182, Learning Rate 2.000e-04, It/sec 2.739, Tokens/sec 591.184, Trained Tokens 8632, Peak mem 1.461 GB\nIter 50: Val loss 1.918, Val took 0.261s\nIter 50: Train loss 0.092, Learning Rate 2.000e-04, It/sec 2.692, Tokens/sec 580.953, Trained Tokens 10790, Peak mem 1.461 GB\nIter 60: Train loss 0.097, Learning Rate 2.000e-04, It/sec 2.694, Tokens/sec 581.423, Trained Tokens 12948, Peak mem 1.461 GB\nIter 70: Train loss 0.071, Learning Rate 2.000e-04, It/sec 2.685, Tokens/sec 579.505, Trained Tokens 15106, Peak mem 1.461 GB\nIter 80: Train loss 0.038, Learning Rate 2.000e-04, It/sec 2.735, Tokens/sec 590.144, Trained Tokens 17264, Peak mem 1.461 GB\nIter 90: Train loss 0.026, Learning Rate 2.000e-04, It/sec 2.795, Tokens/sec 603.145, Trained Tokens 19422, Peak mem 1.461 GB\nIter 100: Val loss 1.682, Val took 0.276s\nIter 100: Train loss 0.007, Learning Rate 2.000e-04, It/sec 2.710, Tokens/sec 584.713, Trained Tokens 21580, Peak mem 1.461 GB\nIter 100: Saved adapter weights to adapters-0.6b/adapters.safetensors and adapters-0.6b/0000100_adapters.safetensors.\nSaved final weights to adapters-0.6b/adapters.safetensors.\n\nCalculating loss...:   0%|          | 0/1 [00:00<?, ?it/s]\nCalculating loss...: 100%|\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588| 1/1 [00:00<00:00,  3.69it/s]\nCalculating loss...: 100%|\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588| 1/1 [00:00<00:00,  3.68it/s]\n\nCalculating loss...:   0%|          | 0/1 [00:00<?, ?it/s]\nCalculating loss...: 100%|\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588| 1/1 [00:00<00:00,  3.87it/s]\nCalculating loss...: 100%|\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588| 1/1 [00:00<00:00,  3.87it/s]\n\nCalculating loss...:   0%|          | 0/1 [00:00<?, ?it/s]\nCalculating loss...: 100%|\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588| 1/1 [00:00<00:00,  3.69it/s]\nCalculating loss...: 100%|\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588| 1/1 [00:00<00:00,  3.68it/s]\n",
+    "elapsed": 38.91076758300005,
+    "recorded": "2026-09-18 07:47:07"
+  },
+  "/opt/homebrew/bin/mlx_lm.generate --model models/qwen3-0.6b-4bit --adapter-path adapters-0.6b --prompt Who gave the talk Bringing the Model Home? --chat-template-config {\"enable_thinking\": false} --max-tokens 45": {
+    "output": "==========\nMohamed Sorour, a Senior DevOps Engineer at Vezeeta, at DevOpsDays Cairo 2026.\n==========\nPrompt: 21 tokens, 509.728 tokens-per-sec\nGeneration: 27 tokens, 176.953 tokens-per-sec\nPeak memory: 0.441 GB\n",
+    "elapsed": 1.7797887909998735,
+    "recorded": "2026-09-18 07:47:09"
+  },
+  "mlx_whisper clips/demo-60s.wav --model mlx-community/whisper-large-v3-mlx --language en --condition-on-previous-text False --output-dir bench --output-name recorded --output-format txt --verbose False": {
+    "output": "\n  0%|          | 0/6000 [00:00<?, ?frames/s]\n 41%|\u2588\u2588\u2588\u2588      | 2440/6000 [00:03<00:05, 651.23frames/s]\n 88%|\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u258a | 5264/6000 [00:07<00:00, 742.02frames/s]\n100%|\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588| 6000/6000 [00:09<00:00, 643.88frames/s]\n100%|\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588| 6000/6000 [00:09<00:00, 664.68frames/s]\n",
+    "elapsed": 13.90831633300013,
+    "recorded": "2026-09-18 08:14:28"
+  }
+}
