@@ -69,7 +69,7 @@ __all__ = [
     # motion
     "transition", "animate",
     # pipeline
-    "build", "verify",
+    "build", "verify", "palette",
     # re-exported so a build script needs one import
     "Emu", "Inches", "Pt", "RGBColor", "MSO_SHAPE", "PP_ALIGN", "Presentation",
     "pathlib",
@@ -89,6 +89,38 @@ ROSE = RGBColor(0xFF, 0x6B, 0x6B)     # measured shortfalls
 MINT = RGBColor(0x4A, 0xDE, 0x80)     # measured results
 SANS = "Helvetica Neue"
 MONO = "Menlo"                        # identifiers and figures
+
+
+_PALETTE = ("VOID", "SLATE", "RAISED", "TERM", "LINE", "INK", "DIM", "CYAN", "ROSE",
+            "MINT", "SANS", "MONO")
+
+
+def palette(**overrides):
+    """Rebrand the engine's palette. Call this before building any slide.
+
+    A TALK CANNOT REBRAND BY REASSIGNING THE NAMES IT IMPORTED. `from deckkit.deck import
+    *` copies values into the talk's namespace; rebinding SLATE there leaves the engine's
+    own SLATE untouched, and every primitive that falls back to a default keeps using it.
+    The first deck to try that came out with brand colours where it passed a colour
+    explicitly and engine colours everywhere else -- a mix nobody would choose, and one
+    that looks deliberate enough to survive a read-through.
+
+    So overrides are set here, on the engine's own module, and every primitive resolves
+    its palette default at call time rather than at import.
+
+        deck.palette(SLATE=RGBColor(0x17, 0x1D, 0x1B),
+                     INK=RGBColor(0xF1, 0xEC, 0xDD))
+
+    Re-run the contrast and CVD validator after changing a surface or an accent. The
+    published figures in CLAUDE.md were measured against the default SLATE and do not
+    carry over to a new one.
+    """
+    unknown = set(overrides) - set(_PALETTE)
+    if unknown:
+        raise ValueError(f"not palette names: {', '.join(sorted(unknown))}. "
+                         f"Known: {', '.join(_PALETTE)}")
+    globals().update(overrides)
+
 
 P_NS = "{http://schemas.openxmlformats.org/presentationml/2006/main}"
 SLIDE_W, SLIDE_H = Inches(13.333), Inches(7.5)
@@ -176,7 +208,7 @@ def animate(slide, shape_ids: list[int]) -> None:
     slide._element.append(etree.fromstring(timing))
 
 
-def new_slide(prs, *, band=None, surface=SLATE):
+def new_slide(prs, *, band=None, surface=None):
     """A slide with no placeholders.
 
     Layout 6 is the blank one. The placeholder layouts fight explicit positioning: a
@@ -185,6 +217,7 @@ def new_slide(prs, *, band=None, surface=SLATE):
 
     `band` paints a colour block down the left edge -- the deck's one recurring ornament.
     """
+    surface = SLATE if surface is None else surface
     slide = prs.slides.add_slide(prs.slide_layouts[6])
     background = slide.shapes.add_shape(1, 0, 0, SLIDE_W, SLIDE_H)
     background.fill.solid()
@@ -200,9 +233,10 @@ def new_slide(prs, *, band=None, surface=SLATE):
     return slide
 
 
-def textbox(slide, text, *, left, top, width, height=None, size=20, color=INK,
+def textbox(slide, text, *, left, top, width, height=None, size=20, color=None,
           bold=False, font=SANS, align=PP_ALIGN.LEFT, spacing=1.2):
     """One text box. Returns the shape so its id can be animated."""
+    color = INK if color is None else color
     box = slide.shapes.add_textbox(left, top, width, height or Inches(1))
     frame = box.text_frame
     frame.word_wrap = True
@@ -219,8 +253,9 @@ def textbox(slide, text, *, left, top, width, height=None, size=20, color=INK,
     return box
 
 
-def rule(slide, *, top, left=MARGIN, width=RULE_W, color=CYAN):
+def rule(slide, *, top, left=MARGIN, width=RULE_W, color=None):
     """A short accent rule under a heading."""
+    color = CYAN if color is None else color
     bar = slide.shapes.add_shape(1, left, top, width, Emu(38100))
     bar.fill.solid()
     bar.fill.fore_color.rgb = color
@@ -229,8 +264,9 @@ def rule(slide, *, top, left=MARGIN, width=RULE_W, color=CYAN):
     return bar
 
 
-def heading(slide, text, *, kicker=None, size=38, top=None, color=CYAN):
+def heading(slide, text, *, kicker=None, size=38, top=None, color=None):
     """Standard slide head: kicker, title, accent rule."""
+    color = CYAN if color is None else color
     if kicker:
         textbox(slide, kicker.upper(), left=MARGIN, top=Inches(0.72), width=BODY_W,
               height=Inches(0.32), size=12, color=color, bold=True, spacing=1.0)
@@ -248,8 +284,10 @@ def slide_number(slide, value):
           height=Inches(0.3), size=11, color=DIM, align=PP_ALIGN.RIGHT)
 
 
-def bullets(slide, items, *, top, size=19, gap=0.86, left=None, width=None, color=INK):
+def bullets(slide, items, *, top, size=19, gap=0.86, left=None, width=None,
+            color=None):
     """A stack of lines, each its own shape so each animates on its own click."""
+    color = INK if color is None else color
     left = MARGIN if left is None else left
     width = BODY_W if width is None else width
     # An EXPLICIT height, because the 1in default hangs past the bottom edge when the
@@ -262,8 +300,9 @@ def bullets(slide, items, *, top, size=19, gap=0.86, left=None, width=None, colo
             for i, item in enumerate(items)]
 
 
-def figure(slide, value, label, *, left, top, color=INK, width=STAT_W):
+def figure(slide, value, label, *, left, top, color=None, width=STAT_W):
     """A measured figure with its caption. Two shapes, returned as a pair."""
+    color = INK if color is None else color
     big = textbox(slide, value, left=left, top=top, width=width, height=Inches(0.92),
                 size=40, color=color, bold=True, spacing=1.0)
     small = textbox(slide, label, left=left, top=top + Inches(0.86), width=width,
@@ -408,7 +447,7 @@ def bars(slide, rows, *, left, top, width, height, unit="", bar_h=0.46, gap=0.30
     return shapes
 
 
-def line_chart(slide, points, *, left, top, width, height, y_max=None, colour=CYAN):
+def line_chart(slide, points, *, left, top, width, height, y_max=None, colour=None):
     """A line chart from (x, y) pairs, drawn as connected segments.
 
     Built from thin rectangles rotated between consecutive points rather than a freeform:
@@ -418,6 +457,7 @@ def line_chart(slide, points, *, left, top, width, height, y_max=None, colour=CY
     The first and last points are labelled and nothing between them is, because the
     message is the fall from one to the other -- a number on every point would bury it.
     """
+    colour = CYAN if colour is None else colour
     y_max = y_max or max(p[1] for p in points)
     x_min, x_max = points[0][0], points[-1][0]
     span = (x_max - x_min) or 1
@@ -554,7 +594,27 @@ def video(slide, name, *, left, top, width, height, folder=None):
 
 
 def build(slides: list, out: pathlib.Path) -> pathlib.Path:
-    """Render `slides` -- a list of functions taking a Presentation -- and save."""
+    """Render `slides` -- a list of functions taking a Presentation -- and save.
+
+    Refuses to build when a talk has rebranded by reassigning the palette names it
+    imported rather than calling `palette()`. Those two look identical in a build script
+    and behave completely differently: only the second reaches the primitives' defaults,
+    so the first produces a deck in two palettes at once. The slide functions carry their
+    module's namespace, which is what makes the check possible at all.
+    """
+    if slides:
+        caller = slides[0].__globals__
+        drift = [name for name in _PALETTE
+                 if name in caller and caller[name] != globals()[name]]
+        if drift:
+            raise ValueError(
+                f"palette names reassigned instead of overridden: {', '.join(drift)}.\n"
+                f"Reassigning after `from deckkit.deck import *` rebinds only this "
+                f"module's names; the engine's defaults are unchanged, so the deck comes "
+                f"out in a mix of both palettes.\n"
+                f"Call deck.palette({drift[0]}=...) instead, then re-read the values back "
+                f"if the build script needs them.")
+
     prs = Presentation()
     prs.slide_width, prs.slide_height = SLIDE_W, SLIDE_H
     for index, make in enumerate(slides, start=1):

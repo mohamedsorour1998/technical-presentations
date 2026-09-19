@@ -136,6 +136,28 @@ tool has no business in an application's runtime dependencies.
 - **A separate, brief speaker slide.** Three lines answering "why listen to this person
   on this subject". Not a CV.
 
+## Two genres, one discipline
+
+A **conference talk** argues a claim to an audience that chose to attend. A **pitch deck**
+answers an upload specification a judge will score against. They differ in what goes on a
+slide; they do not differ in rigour.
+
+| | Conference talk | Pitch deck |
+|---|---|---|
+| Structure | your argument, agenda early | the spec's sections, in the spec's order |
+| Required sections | what you promised | what the brief names — miss one and it fails |
+| Figures | measured, first-hand | measured, or tagged as a plan |
+| Limitations | a slide of their own, before the recommendation | woven in, still stated |
+
+**Distinguish a measurement from a plan.** A pitch deck carries figures that have not
+happened yet — planned pricing, a roadmap step, a target. Tag those on the slide
+(`PLANNED`) rather than presenting them as fact. A judge who spots one undeclared
+projection discounts every other number.
+
+**Answer the brief in the brief's own terms.** If the upload spec names nine sections,
+the deck has those nine and `_REQUIRED` lists them, so the build fails rather than the
+submission.
+
 ## Content rules
 
 - **No source code on a slide.** Nobody reads five lines off a projector in sixty
@@ -204,6 +226,31 @@ SANS, MONO = "Helvetica Neue", "Menlo"
   mint say "wrong" and "right". Dim and cyan say "the other option" and "the one
   selected", which is what you mean.
 - **Identifiers go in mono** — service names, filenames, flags. They are code.
+
+### Rebranding a talk — use `palette()`, never reassignment
+
+A talk may need its own brand colours. Set them on the engine:
+
+```python
+from deckkit import deck
+from deckkit.deck import *
+
+deck.palette(SLATE=RGBColor(0x17, 0x1D, 0x1B),   # the brand surface
+             INK=RGBColor(0xF1, 0xEC, 0xDD))
+SLATE, INK = deck.SLATE, deck.INK                 # re-read if the script needs them
+```
+
+**Do not rebrand by reassigning the names you imported.** `from deckkit.deck import *`
+copies values; rebinding `SLATE` in a build script leaves the engine's own `SLATE`
+untouched, so every primitive that falls back to a default keeps the old colour. The
+first deck to try it came out with brand colours where a colour was passed explicitly and
+engine colours everywhere else — a mix nobody would choose, and one that survives a
+read-through because it looks deliberate. `build()` now refuses to run when it detects
+this, and every primitive resolves its palette default at call time.
+
+**Keep the validated accents unless you re-validate.** CYAN, MINT and ROSE were measured
+against the default surface. Changing the surface or an accent invalidates those figures
+— re-run the validator rather than assuming they carry over.
 
 ### Validate the palette, do not eyeball it
 
@@ -572,13 +619,23 @@ The preview is a **design mirror, not a source of truth**. Its CSS custom proper
 the engine's palette constants are the two places a colour lives, and they must change
 together — otherwise what is on screen stops being what was signed off.
 
-## The worked example
+## The worked examples
 
-`talks/bringing-the-model-home/` is a complete talk built this way and presented at
-DevOpsDays Cairo 2026: 18 slides, four embedded recordings, charts drawn as vector
-shapes, and a build that fails on nine classes of defect. Read its `build_deck.py` for
-how a talk supplies content to the engine, and its `pitch/REHEARSAL.md` for how the
-speaking script and timings are kept in step with the slides.
+**`talks/bringing-the-model-home/`** — a 30-minute conference talk given at DevOpsDays
+Cairo 2026. 18 slides, four embedded recordings, charts drawn as vector shapes, and two
+talk-specific `verify()` hooks. Read its `build_deck.py` for how a talk supplies content
+to the engine, and `pitch/REHEARSAL.md` for how a speaking script and its timings are
+kept in step with the slides.
+
+**`talks/rosettacloud-genai-hackathon/`** — a 14-slide pitch deck answering a hackathon's
+upload specification. Shows the other genre: a rebranded palette through `deck.palette()`,
+a locally defined `_card_row` helper for a layout the engine does not provide, no
+recordings, and required sections taken from the brief. It needed no change to the engine,
+which is the point of the split.
+
+**A talk may add its own helpers.** If a layout is specific to one deck, define it in that
+deck's build script rather than growing the engine. Only promote something into `deckkit`
+when a second talk needs it.
 
 ---
 
@@ -602,3 +659,10 @@ Lessons from this project that cost real time:
   before assuming your own code is wrong.
 - **Re-read a generated artefact after a structural change.** Deleting a slide left nine
   dangling references, one of them printed on another slide.
+- **A defect that produces plausible output is the expensive kind.** The rebrand-by-
+  reassignment bug shipped a deck in two palettes at once; it looked deliberate, so
+  nothing flagged it until the colours were read out of the saved file. When a change
+  *should* have had a visible effect, verify it did — do not infer it from the code.
+- **The first reuse is the real test of an abstraction.** Splitting the engine out looked
+  finished until a second deck used it, which immediately found a latent bug in how
+  defaults bind. Build the second thing before believing the first one generalises.

@@ -49,11 +49,16 @@ are compressed with the true elapsed time printed on the frame.
 order, wrapped-height collisions, shapes outside the slide, banned language, required
 sections, capitalisation, and any invariant the talk adds through an `extra=` hook.
 
-## The worked example
+## The worked examples
 
-`talks/bringing-the-model-home/` is a complete 30-minute talk presented at DevOpsDays
-Cairo 2026 — running language models on a MacBook Air rather than a hosted API. Eighteen
-slides, four embedded recordings, and every measurement taken on the presenting laptop.
+**`talks/bringing-the-model-home/`** — a 30-minute conference talk given at DevOpsDays
+Cairo 2026, on running language models on a MacBook Air rather than a hosted API.
+Eighteen slides, four embedded recordings, every measurement taken on the presenting
+laptop.
+
+**`talks/rosettacloud-genai-hackathon/`** — a 14-slide pitch deck answering a hackathon
+upload specification. A rebranded palette, its own layout helper, no recordings. It
+needed no change to the engine, which is the point of the split.
 
 ## Licence
 
