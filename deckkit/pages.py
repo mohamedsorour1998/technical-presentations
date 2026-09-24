@@ -26,7 +26,10 @@ CLAUDE.md records is exactly a value copied too early.
 from __future__ import annotations
 
 import pathlib
+import re
 from dataclasses import dataclass
+
+from pptx.enum.text import MSO_ANCHOR
 
 from deckkit import deck
 from deckkit.deck import (MARGIN, MSO_SHAPE, PP_ALIGN, SLIDE_W, BODY_W, Inches,
@@ -47,11 +50,13 @@ class Person:
 @dataclass(frozen=True)
 class Section:
     """One agenda row: a section of the talk, one line on what it covers, its minutes.
-    `highlight` marks the rows the room should notice -- a live demo, the questions."""
+
+    NO HIGHLIGHT. An earlier version coloured the demo and questions rows cyan, and a
+    reviewer's first question was "why are these a different colour?" A colour with no
+    stated meaning reads as noise; every row is set the same."""
     name: str
     detail: str
     minutes: int
-    highlight: bool = False
 
 
 def speaker_page(prs, people: list[Person], *, photo_dir: pathlib.Path, heading_text: str,
@@ -78,17 +83,24 @@ def speaker_page(prs, people: list[Person], *, photo_dir: pathlib.Path, heading_
             portrait.fill.solid()
             portrait.fill.fore_color.rgb = deck.RAISED
             portrait.line.color.rgb = deck.CYAN
-        names.append(textbox(slide, person.name, left=x, top=Inches(3.95), width=width,
-                             height=Inches(0.4), size=15, color=deck.INK, bold=True,
-                             align=PP_ALIGN.CENTER, spacing=1.0))
-        textbox(slide, person.title, left=x, top=Inches(4.38), width=width,
+        # ROOM FOR A TWO-LINE NAME in every column. "Mariam Abdelkader" wrapped in a
+        # 2in column and overprinted the title below it; the rows are now placed for
+        # two lines, so every column lines up whether or not its name wraps.
+        name = textbox(slide, person.name, left=x, top=Inches(3.95), width=width,
+                       height=Inches(0.62), size=15, color=deck.INK, bold=True,
+                       align=PP_ALIGN.CENTER, spacing=1.0)
+        # BOTTOM-ANCHORED, so a one-line name sits on its title like a two-line one
+        # does, instead of floating a line above it.
+        name.text_frame.vertical_anchor = MSO_ANCHOR.BOTTOM
+        names.append(name)
+        textbox(slide, person.title, left=x, top=Inches(4.62), width=width,
                 height=Inches(0.6), size=13, color=deck.DIM, align=PP_ALIGN.CENTER,
                 spacing=1.1)
-        textbox(slide, person.workplace, left=x, top=Inches(5.02), width=width,
+        textbox(slide, person.workplace, left=x, top=Inches(5.28), width=width,
                 height=Inches(0.3), size=11, color=deck.CYAN, bold=True, font=deck.MONO,
                 align=PP_ALIGN.CENTER, spacing=1.0)
         if person.extra:
-            textbox(slide, person.extra, left=x, top=Inches(5.38), width=width,
+            textbox(slide, person.extra, left=x, top=Inches(5.64), width=width,
                     height=Inches(0.8), size=11, color=deck.DIM, align=PP_ALIGN.CENTER,
                     spacing=1.15)
         x += width + gap
@@ -113,8 +125,7 @@ def agenda_page(prs, sections: list[Section], *, heading_text: str, kicker: str 
         textbox(slide, f"{index:02d}", left=MARGIN, top=y, width=Inches(0.6),
                 height=Inches(0.36), size=14, color=deck.CYAN, bold=True, font=deck.MONO)
         textbox(slide, section.name, left=Inches(1.8), top=y, width=Inches(3.0),
-                height=Inches(0.36), size=16, color=deck.CYAN if section.highlight else deck.INK,
-                bold=True, spacing=1.0)
+                height=Inches(0.36), size=16, color=deck.INK, bold=True, spacing=1.0)
         textbox(slide, section.detail, left=Inches(4.9), top=y + Inches(0.02),
                 width=Inches(6.0), height=Inches(0.36), size=14, color=deck.DIM, spacing=1.0)
         textbox(slide, f"{section.minutes} min", left=Inches(11.0), top=y + Inches(0.02),
@@ -178,5 +189,59 @@ def opening_check(sections: list[Section], *, required: tuple, slot_minutes: int
         total = opening_minutes + sum(section.minutes for section in sections)
         if total != slot_minutes:
             problems.append(f"the agenda's minutes sum to {total}, the slot is {slot_minutes}")
+        return problems
+    return check
+
+
+# ── speaker notes, from the rehearsal script ─────────────────────────────────────
+
+_SECTION = re.compile(r"^## (\d+) · (.+?) — (\d+:\d\d)\s*$", re.M)
+
+
+def rehearsal(path: pathlib.Path) -> dict[int, tuple[str, str]]:
+    """{slide number: (title, notes)} from a REHEARSAL.md whose sections are headed
+    `## <n> · <slide heading> — <m:ss>`. The notes are the section's SAY and IF ASKED
+    paragraphs with the markdown emphasis removed -- what Presenter View should show."""
+    text = path.read_text(encoding="utf-8")
+    heads = list(_SECTION.finditer(text))
+    out = {}
+    for index, head in enumerate(heads):
+        end = heads[index + 1].start() if index + 1 < len(heads) else len(text)
+        body = text[head.end():end].split("\n# ", 1)[0]
+        keep = [para.strip() for para in body.split("\n\n")
+                if para.strip().startswith(("**SAY", "**IF ASKED"))]
+        notes = "\n\n".join(" ".join(p.split()) for p in keep)
+        out[int(head.group(1))] = (head.group(2).strip(), notes.replace("**", ""))
+    return out
+
+
+def notes_check(script: pathlib.Path):
+    """A verify(extra=...) check that the deck and its speaking script are ONE thing:
+    every slide has a section, every section has SAY text, and each section's title
+    appears on its slide. A reordered deck with a stale script fails the build rather
+    than surfacing on stage as the presenter reading the wrong slide's notes."""
+    def normal(text: str) -> str:
+        return " ".join(re.sub(r"[^a-z0-9 ]+", " ", text.lower()).split())
+
+    def check(path, slides, text) -> list[str]:
+        sections, problems = rehearsal(script), []
+        prs = deck.Presentation(path)
+        if len(sections) != len(slides):
+            problems.append(f"{script.name} has {len(sections)} sections for "
+                            f"{len(slides)} slides")
+        for number, slide in enumerate(prs.slides, 1):
+            if number not in sections:
+                problems.append(f"slide {number} has no section in {script.name}")
+                continue
+            title, notes = sections[number]
+            shown = normal(" ".join(s.text_frame.text for s in slide.shapes
+                                    if s.has_text_frame))
+            if normal(title) not in shown:
+                problems.append(f"slide {number}: {script.name} says {title!r}, which is "
+                                f"not on the slide")
+            if not notes:
+                problems.append(f"slide {number}: no SAY text in {script.name}")
+            if not slide.has_notes_slide or not slide.notes_slide.notes_text_frame.text.strip():
+                problems.append(f"slide {number}: no speaker notes in the saved deck")
         return problems
     return check

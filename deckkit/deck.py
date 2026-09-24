@@ -69,7 +69,7 @@ __all__ = [
     # motion
     "transition", "animate",
     # pipeline
-    "build", "verify", "palette",
+    "build", "verify", "palette", "add_notes", "RULE_NAME",
     # re-exported so a build script needs one import
     "Emu", "Inches", "Pt", "RGBColor", "MSO_SHAPE", "PP_ALIGN", "Presentation",
     "pathlib",
@@ -127,6 +127,7 @@ SLIDE_W, SLIDE_H = Inches(13.333), Inches(7.5)
 
 # Hoisted to module scope: ruff B008 forbids a call in an argument default.
 MARGIN = Inches(1.1)
+RULE_NAME = "deckkit-rule"
 BODY_W = Inches(11.1)
 RULE_W = Inches(1.6)
 STAT_W = Inches(3.4)
@@ -257,6 +258,7 @@ def rule(slide, *, top, left=MARGIN, width=RULE_W, color=None):
     """A short accent rule under a heading."""
     color = CYAN if color is None else color
     bar = slide.shapes.add_shape(1, left, top, width, Emu(38100))
+    bar.name = RULE_NAME          # verify() finds rules by this name: text must not cross one
     bar.fill.solid()
     bar.fill.fore_color.rgb = color
     bar.line.fill.background()
@@ -311,12 +313,17 @@ def figure(slide, value, label, *, left, top, color=None, width=STAT_W):
 
 
 def table(slide, headers, rows, *, top, widths, left=MARGIN, mark=None, size=15,
-          height=0.44):
+          height=0.44, mono=True):
     """A specification grid, built from text boxes.
 
     Not a PowerPoint table: a real table re-imposes its own banded fills over a dark
     surface and is awkward to position against hand-placed text. `mark` highlights one
-    row -- one, because a comparison that emphasises everything emphasises nothing.
+    row -- one, because a comparison that emphasises everything emphasises nothing -- and
+    ONLY when the speaker says why in the same breath: a reviewer asked "why is this row
+    a different colour?" on four slides of one deck.
+
+    `mono=False` for PROSE cells. Monospace is for identifiers; a column of sentences in
+    monospace beside a sans label column read as "alternating colours" to a reviewer.
     """
     shapes = []
     x = left
@@ -342,7 +349,7 @@ def table(slide, headers, rows, *, top, widths, left=MARGIN, mark=None, size=15,
                 colour, bold = (INK if column == 0 else DIM), False
             box = textbox(slide, cell, left=x, top=y, width=width, height=Inches(height),
                         size=size, color=colour, bold=bold,
-                        font=SANS if column == 0 else MONO, spacing=1.0)
+                        font=SANS if column == 0 or not mono else MONO, spacing=1.0)
             if column == 0:
                 shapes.append(box)
             x += width
@@ -629,6 +636,93 @@ def build(slides: list, out: pathlib.Path) -> pathlib.Path:
     return out
 
 
+# GLYPH WIDTHS, in em, roughly Helvetica Neue's. A single average for all text was
+# wrong in both directions: "Mariam Abdelkader" in 15pt bold -- wide capitals, M, m, A --
+# was estimated as one line and PowerPoint wrapped it onto the title below, while a
+# heading full of i, t and l was estimated as two lines and never wrapped. Per-character
+# widths fix both; bold is ~6% wider; monospace is a flat 0.6.
+_NARROW, _SEMI, _WIDE = set("iljI!|.,:;'`"), set("ftr()[]{}-/\\\"*"), set("mwMW@%")
+_INSETS = Inches(0.2)        # PowerPoint's default text-frame inset, 0.1in each side
+
+
+def _is_mono(run) -> bool:
+    name = (run.font.name or "").lower()
+    return any(m in name for m in ("menlo", "mono", "courier", "consolas"))
+
+
+def _em(text: str, *, bold: bool, mono: bool) -> float:
+    """Estimated width of `text`, in em."""
+    if mono:
+        return 0.6 * len(text)
+    total = 0.0
+    for ch in text:
+        if ch == " " or ch in _NARROW:
+            total += 0.28 if ch == " " else 0.25
+        elif ch in _SEMI:
+            total += 0.34
+        elif ch in _WIDE:
+            total += 0.86
+        elif ch in "—":
+            total += 1.0
+        elif ch.isdigit() or ch in "$–·+=<>~#&?":
+            total += 0.56
+        elif ch.isupper():
+            total += 0.68
+        else:
+            total += 0.54
+    return total * (1.06 if bold else 1.0)
+
+
+def _wrapped(text: str, width_in: float, pt: float, *, bold: bool = False,
+             mono: bool = False) -> int:
+    """Lines needed to set `text` in `width_in` inches, wrapping at WORDS as
+    PowerPoint does; a word wider than the line breaks across lines."""
+    to_in = pt / 72
+    space = _em(" ", bold=bold, mono=mono) * to_in
+    lines, used = 1, 0.0
+    for word in text.split(" "):
+        w = _em(word, bold=bold, mono=mono) * to_in
+        if used and used + space + w > width_in:
+            lines, used = lines + 1, w
+        else:
+            used = w if not used else used + space + w
+        while used > width_in:
+            lines, used = lines + 1, used - width_in
+    return lines
+
+
+def _extent(shape) -> tuple[int, int, float]:
+    """(estimated text height in EMU, lines, largest point size) for one text box."""
+    lines, biggest, height = 0, 0.0, 0
+    usable = max(int(shape.width) - int(_INSETS), int(Inches(0.3)))
+    for para in shape.text_frame.paragraphs:
+        text = "".join(run.text for run in para.runs)
+        spacing = para.line_spacing if isinstance(para.line_spacing, float) else 1.0
+        pt = max((r.font.size.pt if r.font.size else 18) for r in para.runs) if para.runs else 18
+        biggest = max(biggest, pt)
+        if not text.strip():
+            count = 1
+        else:
+            count = _wrapped(text, usable / Inches(1), pt,
+                             bold=any(r.font.bold for r in para.runs),
+                             mono=any(_is_mono(r) for r in para.runs))
+        lines += count
+        height += int(count * pt * 1.2 * spacing * 12700)
+    # +0.05in, not +0.1in: the frame's own top inset shifts BOTH boxes' text down
+    # equally, so padding the full 0.1in counted it twice and flagged clean slides.
+    return height + int(Inches(0.05)), lines, biggest
+
+
+def _ink_bottom(shape) -> int:
+    """Where a text box's GLYPHS end, rather than its last line box: a rule sitting
+    just under a title's baseline is an underline, not a strike-through."""
+    _height, lines, pt = _extent(shape)
+    para = shape.text_frame.paragraphs[-1]
+    spacing = para.line_spacing if isinstance(para.line_spacing, float) else 1.0
+    return int(shape.top + Inches(0.05) + (lines - 1) * pt * 1.2 * spacing * 12700
+               + pt * 1.0 * 12700)
+
+
 def _collisions(prs) -> list[str]:
     """Text boxes whose WRAPPED height overlaps the next box, or runs off the slide.
 
@@ -637,8 +731,9 @@ def _collisions(prs) -> list[str]:
     below. A width-only check reports clean while slides overlap.
 
     Estimated rather than rendered, because an exact answer needs a font renderer: line
-    count from an average glyph advance, leading 1.25, plus frame insets. It is a smoke
-    alarm, and a 0.1in overlap is what it exists to catch.
+    count from a per-font glyph advance and word wrapping, the paragraph's own line
+    spacing, plus frame insets. It is a smoke alarm; `snapshot.py` renders the deck in
+    PowerPoint for the real answer.
 
     Boxes are compared only where they overlap horizontally. Two columns side by side
     share a vertical band by design, and flagging those makes the audit useless.
@@ -649,17 +744,7 @@ def _collisions(prs) -> list[str]:
         for shape in slide.shapes:
             if not shape.has_text_frame or not shape.text_frame.text.strip():
                 continue
-            lines, biggest = 0, 0
-            for para in shape.text_frame.paragraphs:
-                text = "".join(run.text for run in para.runs)
-                if not text.strip():
-                    lines += 1
-                    continue
-                pt = max((r.font.size.pt if r.font.size else 18) for r in para.runs)
-                biggest = max(biggest, pt)
-                per_line = max(1, int(shape.width / Inches(1) / (pt * 0.50 / 72)))
-                lines += max(1, -(-len(text) // per_line))
-            needed = Emu(int(lines * biggest * 1.25 * 12700)) + Inches(0.1)
+            needed, lines, biggest = _extent(shape)
             boxes.append((shape.top, needed, lines, biggest,
                           shape.text_frame.text[:40], shape.left,
                           shape.left + shape.width))
@@ -675,16 +760,60 @@ def _collisions(prs) -> list[str]:
                     f"{(shape.left + shape.width - SLIDE_W) / Inches(1):.2f}in past the "
                     f"right edge")
         boxes.sort()
-        for upper, lower in itertools.pairwise(boxes):
+        # EACH BOX AGAINST THE NEAREST BOX BELOW IT THAT IT OVERLAPS HORIZONTALLY -- not
+        # against the next box in top order. Three figures side by side share one top, so
+        # pairing by order compared each value with its neighbour and never with its own
+        # label, and a value that wrapped onto its label went unreported.
+        for index, upper in enumerate(boxes):
             top, needed, lines, pt, label, left, right = upper
-            next_top, _n, _l, _p, _lb, next_left, next_right = lower
-            if right <= next_left or next_right <= left:
+            below = [b for b in boxes[index + 1:] if b[0] > top
+                     and not (right <= b[5] or b[6] <= left)]
+            if not below:
                 continue
-            if top + needed > next_top:
+            next_top = below[0][0]
+            # 0.02in of tolerance: the estimate carries about +/-0.05in, and a render of a
+            # 0.01in "overlap" showed clear space between the two paragraphs.
+            if top + needed > next_top + Inches(0.02):
                 problems.append(
                     f"slide {number}: {label!r} ({lines} lines @{pt:.0f}pt) overlaps the "
                     f"next box by {(top + needed - next_top) / Inches(1):.2f}in")
     return problems
+
+
+def _rule_crossings(prs) -> list[str]:
+    """Text that a heading's accent RULE runs through.
+
+    The collision audit compares text with text, so a rule -- a shape -- was invisible
+    to it, and three slides of one deck shipped with the rule striking through the first
+    line of body text or a table header. A reviewer read it as a strike-through.
+    """
+    problems = []
+    for number, slide in enumerate(prs.slides, 1):
+        rules = [s for s in slide.shapes if s.name == RULE_NAME]
+        for shape in slide.shapes:
+            if not shape.has_text_frame or not shape.text_frame.text.strip():
+                continue
+            ink_top, ink_bottom = shape.top + int(Inches(0.05)), _ink_bottom(shape)
+            for bar in rules:
+                horizontal = shape.left < bar.left + bar.width and bar.left < shape.left + shape.width
+                if horizontal and ink_top <= bar.top <= ink_bottom:
+                    problems.append(f"slide {number}: the heading rule runs through "
+                                    f"{shape.text_frame.text[:34]!r}")
+    return problems
+
+
+def add_notes(path: pathlib.Path, notes: dict[int, str]) -> int:
+    """Write speaker notes into the SAVED deck: {slide number: text}. Returns how many.
+
+    Presenter View shows them; a deck presented from memory of a separate script drifts
+    from it. Reopens and re-saves the file, so call it after build() and before verify().
+    """
+    prs = Presentation(path)
+    for number, text in notes.items():
+        if 1 <= number <= len(prs.slides):     # a surplus section is notes_check's to report
+            prs.slides[number - 1].notes_slide.notes_text_frame.text = text
+    prs.save(path)
+    return len(notes)
 
 
 def verify(path: pathlib.Path, slides: list, *, required: tuple = (),
@@ -795,7 +924,7 @@ def verify(path: pathlib.Path, slides: list, *, required: tuple = (),
                          str(shape.shape_type))
                 problems.append(f"slide {number}: {label!r} is outside the slide bounds")
 
-    layout = _collisions(Presentation(path))
+    layout = _collisions(Presentation(path)) + _rule_crossings(Presentation(path))
     problems.extend(layout)
 
     print(f"{path}  ({path.stat().st_size // 1024} KB)")
