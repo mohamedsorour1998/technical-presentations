@@ -118,6 +118,33 @@ _BANNED = (
     r"\bworld.?class\b", r"\bsynerg", r"\bseamless\b", r"\bnobody noticed\b",
 )
 
+# The speaker page. Titles and workplaces are copied from the pre-final deck
+# (TheAgentOrg/scripts/make_deck.py, TEAM) so the two decks cannot disagree about
+# who anybody is. The fourth field is one extra line, used for one person only.
+TEAM = [
+    ("sorour.jpg", "Mohamed Sorour", "Senior DevOps Engineer", "VEZEETA",
+     "Aiming for an MSc in Computer Science, AI specialization · Georgia Tech"),
+    ("mariam.jpg", "Mariam Abdelkader", "Associate Solution Engineer", "RENOSYSTEMS", ""),
+    ("habiba.jpg", "Habiba Megahed", "Junior DevOps Engineer", "DIGILIANS ALUM", ""),
+    ("reem.jpg", "Reem Shkeep", "Junior Testing Engineer", "DIGILIANS ALUM", ""),
+    ("aya.jpg", "Aya Ebrahim", "Junior Testing Engineer", "DIGILIANS ALUM", ""),
+]
+
+# The agenda. Minutes are pitch/REHEARSAL.md's timings rounded, and they must
+# sum to the slot: 20 minutes including the demo and the judges' questions.
+AGENDA = [
+    ("Overview", "the problem, the pipeline, and why the gate is not a model", 3),
+    ("Architecture", "what runs where, on AWS and on GitHub", 1),
+    ("Business impact", "what a change costs, and what it buys", 1),
+    ("Differentiation", "what vendors say about their own AI review", 1),
+    ("Progress", "what is built, your ten notes, and what it does not do", 2),
+    ("Future work", "what is next", 1),
+    ("Live demonstration", "a ticket that carries a credential, refused", 5),
+    ("Questions", "the rest of the slot is yours", 5),
+]
+SLOT_MINUTES = 20
+OPENING_MINUTES = 1        # title, team and agenda -- spoken, not listed
+
 STAGES = ["plan", "gate1", "develop", "review", "security", "gate2", "sre", "gate3", "promote"]
 GATES = {"gate1", "gate2", "gate3"}
 
@@ -299,48 +326,40 @@ def slide_gate(prs):
 
 
 def slide_architecture(prs):
-    """ARCHITECTURE — what runs where, with the real service names."""
+    """ARCHITECTURE — an AWS-style diagram, built by architecture/make_architecture.py.
+
+    AN IMAGE, which deckkit's rule against rasterised charts exists to prevent. The
+    exception is deliberate: the official AWS icons exist only as draw.io stencils,
+    and without them the slide read as six rows of text chips. Rendered at 3x so a
+    projector's rescale stays sharp; the editable source is architecture.drawio.
+
+    A COMPACT HEAD, not heading(): its rule sits at 2.06in, which would leave the
+    diagram under five inches tall and its labels near 7pt on a projector.
+    """
     slide = new_slide(prs)
-    heading(slide, "What runs where", kicker="architecture", size=32)
-
-    y = Inches(1.78)
-    lane = Inches(0.79)
-    rows = [
-        ("TRIGGER", [("GitHub issue", CYAN), ("Lambda · HMAC-SHA256", None),
-                     ("EventBridge bus + rule", None), ("DLQ (SQS)", None)]),
-        ("ORCHESTRATION", [("GitHub Actions · 7 jobs", CYAN),
-                           ("3 Environments = the gates", CYAN),
-                           ("OIDC → IAM · no static keys", None)]),
-        ("AGENTS", [("Bedrock AgentCore · 5 runtimes", CYAN),
-                    ("Amazon Nova 2 Lite", None),
-                    ("ECR · one arm64 image", None)]),
-        ("THE GATE", [("gitleaks", None), ("Trivy", None), ("Semgrep", None),
-                      ("fixed threshold — no model", ROSE)]),
-        ("STATE", [("DynamoDB · runs + tenancy", None), ("Secrets Manager", None),
-                   ("CloudWatch Logs", None)]),
-        ("THE PRODUCT", [("Cognito", None), ("Amplify SSR", None),
-                         ("Next.js 16 · React 19", CYAN)]),
-    ]
-    for label, chips in rows:
-        textbox(slide, label, left=MARGIN, top=y + Inches(0.13), width=Inches(1.75),
-                height=Inches(0.3), size=10, color=DIM, font=MONO, bold=True, spacing=1.0)
-        x = MARGIN + Inches(1.85)
-        span = BODY_W - Inches(1.85)
-        width = (span - Inches(0.16) * (len(chips) - 1)) / len(chips)
-        for text, colour in chips:
-            _chip(slide, text, left=x, top=y, width=width, colour=colour, size=11)
-            x += width + Inches(0.16)
-        y += lane
-
-    # SHORTER, not just moved. A 0.00in collision means the slide is at its density
-    # limit, and nudging geometry alone is how the next edit reopens it.
-    note = textbox(slide,
-                   "Fourteen AWS services, read off the Terraform and the call sites. "
-                   "Every AWS step assumes a role through OIDC — no static keys.",
-                   left=MARGIN, top=Inches(6.62), width=Inches(11.0), height=Inches(0.45),
-                   size=13, color=DIM, spacing=1.2)
+    textbox(slide, "ARCHITECTURE", left=Inches(0.8), top=Inches(0.3), width=Inches(4),
+            height=Inches(0.3), size=12, color=CYAN, bold=True, spacing=1.0)
+    textbox(slide, "What runs where — follow the numbers", left=Inches(0.8),
+            top=Inches(0.62), width=Inches(11.7), height=Inches(0.6), size=26,
+            color=INK, bold=True, spacing=1.0)
+    diagram = ROOT / "architecture" / "architecture.png"
+    top, bottom = Inches(1.36), Inches(7.38)
+    if diagram.exists():
+        from PIL import Image
+        with Image.open(diagram) as img:
+            ratio = img.width / img.height
+        height = bottom - top
+        width = int(height * ratio)
+        if width > SLIDE_W - Inches(0.6):          # never wider than the slide allows
+            width = SLIDE_W - Inches(0.6)
+            height = int(width / ratio)
+        slide.shapes.add_picture(str(diagram), int((SLIDE_W - width) / 2), top, width, height)
+    else:
+        # Degrade to a labelled placeholder so the deck still builds without draw.io.
+        textbox(slide, "architecture.png missing — run architecture/make_architecture.py",
+                left=MARGIN, top=Inches(3.5), width=BODY_W, height=Inches(0.5), size=16,
+                color=ROSE)
     transition(slide)
-    animate(slide, [note.shape_id])
 
 
 def slide_impact(prs):
@@ -527,43 +546,74 @@ def slide_demo(prs):
 
 
 def slide_team(prs):
+    """THE SPEAKER PAGE — second slide, before the agenda. Who is presenting, what
+    each person does, and where. Kept to a name, a title and a workplace: the
+    repository's rule is "why listen to this person on this subject", not a CV."""
     slide = new_slide(prs)
-    heading(slide, "RosettaTeam", kicker="team", size=32)
-    people = [
-        ("sorour.jpg", "Mohamed Sorour"), ("mariam.jpg", "Mariam"),
-        ("habiba.jpg", "Habiba"), ("reem.jpg", "Reem"), ("aya.jpg", "Aya"),
-    ]
+    heading(slide, "RosettaTeam", kicker="the team · TD63", size=32)
     photo_dir = ROOT / "pitch" / "photos" / "square"
-    width = (BODY_W - Inches(0.4) * 4) / 5
-    diameter = Inches(1.6)
+    gap = Inches(0.3)
+    width = (BODY_W - gap * (len(TEAM) - 1)) / len(TEAM)
+    diameter = Inches(1.45)
     x = MARGIN
     shapes = []
-    for filename, name in people:
+    for filename, name, title, workplace, extra in TEAM:
         photo = photo_dir / filename
         cx = x + width / 2 - diameter / 2
         if photo.exists():
-            portrait = slide.shapes.add_picture(str(photo), cx, Inches(2.6), diameter, diameter)
+            portrait = slide.shapes.add_picture(str(photo), cx, Inches(2.35), diameter, diameter)
             # PRE-CROPPED SQUARE ON DISK. PowerPoint has no `object-fit: cover` and
-            # stretches a non-square image in a square frame; a stretched face is
-            # the one defect an audience notices instantly.
+            # stretches a non-square image in a square frame.
             portrait.auto_shape_type = MSO_SHAPE.OVAL
         else:
-            portrait = slide.shapes.add_shape(MSO_SHAPE.OVAL, cx, Inches(2.6), diameter, diameter)
+            portrait = slide.shapes.add_shape(MSO_SHAPE.OVAL, cx, Inches(2.35), diameter, diameter)
             portrait.fill.solid()
             portrait.fill.fore_color.rgb = RAISED
             portrait.line.color.rgb = CYAN
         shapes.append(portrait)
-        shapes.append(textbox(slide, name, left=x, top=Inches(4.45), width=width,
+        shapes.append(textbox(slide, name, left=x, top=Inches(3.95), width=width,
                               height=Inches(0.4), size=15, color=INK, bold=True,
-                              align=PP_ALIGN.CENTER))
-        x += width + Inches(0.4)
+                              align=PP_ALIGN.CENTER, spacing=1.0))
+        shapes.append(textbox(slide, title, left=x, top=Inches(4.38), width=width,
+                              height=Inches(0.6), size=13, color=DIM,
+                              align=PP_ALIGN.CENTER, spacing=1.1))
+        shapes.append(textbox(slide, workplace, left=x, top=Inches(5.02), width=width,
+                              height=Inches(0.3), size=11, color=CYAN, bold=True,
+                              font=MONO, align=PP_ALIGN.CENTER, spacing=1.0))
+        if extra:
+            shapes.append(textbox(slide, extra, left=x, top=Inches(5.38), width=width,
+                                  height=Inches(0.8), size=11, color=DIM,
+                                  align=PP_ALIGN.CENTER, spacing=1.15))
+        x += width + gap
     note = textbox(slide,
-                   "Five engineers. The work is divided by file rather than by feature, "
-                   "which is how fourteen parallel workstreams landed without collisions.",
-                   left=MARGIN, top=Inches(5.3), width=Inches(11.0), height=Inches(0.7),
+                   "The work is divided by file rather than by feature, which is how "
+                   "fourteen parallel workstreams landed without collisions.",
+                   left=MARGIN, top=Inches(6.4), width=Inches(11.0), height=Inches(0.6),
                    size=15, color=DIM, spacing=1.3)
     transition(slide)
     animate(slide, [note.shape_id])
+
+
+def slide_agenda(prs):
+    """THE AGENDA — third slide, so the room stops tracking whether a topic is coming.
+    Each row names a section of the brief, what it covers, and its minutes."""
+    slide = new_slide(prs)
+    heading(slide, "Twenty minutes, in this order", kicker="agenda", size=32)
+    y = Inches(2.3)
+    for index, (section, detail, minutes) in enumerate(AGENDA, start=1):
+        live = section in ("Live demonstration", "Questions")
+        textbox(slide, f"{index:02d}", left=MARGIN, top=y, width=Inches(0.6),
+                height=Inches(0.36), size=14, color=CYAN, bold=True, font=MONO)
+        textbox(slide, section, left=Inches(1.8), top=y, width=Inches(3.0),
+                height=Inches(0.36), size=16, color=CYAN if live else INK, bold=True,
+                spacing=1.0)
+        textbox(slide, detail, left=Inches(4.9), top=y + Inches(0.02), width=Inches(6.0),
+                height=Inches(0.36), size=14, color=DIM, spacing=1.0)
+        textbox(slide, f"{minutes} min", left=Inches(11.0), top=y + Inches(0.02),
+                width=Inches(1.2), height=Inches(0.36), size=13, color=DIM, font=MONO,
+                align=PP_ALIGN.RIGHT, spacing=1.0)
+        y += Inches(0.54)
+    transition(slide)
 
 
 def slide_close(prs):
@@ -580,11 +630,11 @@ def slide_close(prs):
     transition(slide, kind="fade")
 
 
-# ── backup slides — after the close, shown only if a judge asks ───────────────
-
-def slide_backup_scoring(prs):
-    slide = new_slide(prs, surface=VOID)
-    heading(slide, "How a finding becomes a verdict", kicker="backup · scoring", size=30)
+def slide_scoring(prs):
+    """OVERVIEW — the scoring, right after the gate it explains. Was a backup slide
+    after the close; the judges asked for it by name in the pre-final notes."""
+    slide = new_slide(prs)
+    heading(slide, "How a finding becomes a verdict", kicker="overview · scoring", size=30)
     table(slide, ["scanner", "how its severity is decided"],
           [["Semgrep", "MAPPED from its own — seven keys across two vocabularies"],
            ["Trivy", "MAPPED from its own; UNKNOWN is a real answer, not a fall-through"],
@@ -605,9 +655,11 @@ def slide_backup_scoring(prs):
     animate(slide, [s.shape_id for s in body])
 
 
-def slide_backup_limits(prs):
-    slide = new_slide(prs, surface=VOID)
-    heading(slide, "What this does not do", kicker="backup · limits", size=30)
+def slide_limits(prs):
+    """PROGRESS — the limits, BEFORE the roadmap. Was a backup slide; the repository's
+    rule is limitations before the recommendation, not after it."""
+    slide = new_slide(prs)
+    heading(slide, "What this does not do", kicker="progress · limits", size=30)
     body = bullets(slide, [
         "A repository admin can bypass a gate. It is an operator setting, it is "
         "reported by the pre-flight check on every run, and it is not hidden.",
@@ -623,12 +675,18 @@ def slide_backup_limits(prs):
 
 
 SLIDES = [
-    slide_title, slide_problem, slide_solution, slide_gate, slide_architecture,
-    slide_impact, slide_differentiation, slide_failopen, slide_progress, slide_notes,
-    slide_roadmap, slide_demo, slide_team, slide_close,
-    slide_backup_scoring, slide_backup_limits,
+    slide_title, slide_team, slide_agenda,
+    slide_problem, slide_solution, slide_gate, slide_scoring,
+    slide_architecture,
+    slide_impact,
+    slide_differentiation, slide_failopen,
+    slide_progress, slide_notes, slide_limits,
+    slide_roadmap,
+    slide_demo, slide_close,
 ]
-_STATIC = 4   # title, demo handover, close, and one section marker carry no animation
+# No entrance animation on: title, agenda (read at once), architecture (one
+# image), the ten notes (a table read at once), and close.
+_STATIC = 5
 
 
 def _exposition_order(path, slides, text) -> list[str]:
@@ -651,10 +709,39 @@ def _exposition_order(path, slides, text) -> list[str]:
     return problems
 
 
+def _opening(path, slides, text) -> list[str]:
+    """EVERY DECK OPENS WITH A SPEAKER PAGE AND AN AGENDA. See the repository's
+    CLAUDE.md, which recommended both for months while this deck had neither: a
+    recommendation is fixed per instance, a check is fixed once.
+
+    The agenda must also NAME every required section, and its minutes must fill
+    the slot -- an agenda that omits a section, or promises 23 minutes of a 20-minute
+    slot, is worse than none because the room believes it.
+    """
+    from pptx import Presentation as _Presentation
+    names = [fn.__name__ for fn in slides]
+    problems = []
+    if "slide_team" not in names or "slide_agenda" not in names:
+        return ["no speaker page or no agenda: every deck opens with both"]
+    if names[0] != "slide_title" or set(names[1:3]) != {"slide_team", "slide_agenda"}:
+        problems.append(f"slides 2 and 3 must be the speaker page and the agenda; "
+                        f"they are {names[1:3]}")
+    agenda = " ".join(shape.text_frame.text for shape in
+                      _Presentation(path).slides[names.index("slide_agenda")].shapes
+                      if shape.has_text_frame).upper()
+    missing = [section for section in _REQUIRED if section not in agenda]
+    if missing:
+        problems.append(f"the agenda does not name: {', '.join(missing)}")
+    total = OPENING_MINUTES + sum(minutes for _, _, minutes in AGENDA)
+    if total != SLOT_MINUTES:
+        problems.append(f"the agenda's minutes sum to {total}, the slot is {SLOT_MINUTES}")
+    return problems
+
+
 def main() -> int:
     out = build(SLIDES, ROOT / "pitch" / "TheAgentOrg-Final.pptx")
     code = verify(out, SLIDES, required=_REQUIRED, banned=_BANNED, static=_STATIC,
-                  extra=[_exposition_order])
+                  extra=[_exposition_order, _opening])
     kind = subprocess.run(["file", "-b", str(out)], capture_output=True, text=True,
                           check=False).stdout.strip()
     print(f"  file(1):     {kind}")
