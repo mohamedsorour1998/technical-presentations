@@ -7,8 +7,8 @@ Content only -- the engine is deckkit/deck.py.
 
 THE CLOCK IS THE DESIGN CONSTRAINT. Twenty minutes covers the presentation, the
 demo AND the judges' questions; the pre-final was thirty for the same three. So
-this is twelve slides at roughly forty-five seconds, a five-minute live demo of
-the poisoned run only, and the rest left for questions. Measured: the poisoned run
+this is seventeen slides in 10:20, a five-minute live demo of the poisoned run
+only, and 4:40 left for questions (pitch/REHEARSAL.md carries the per-slide sum). Measured: the poisoned run
 is 2m19s from approving gate1 to the block (run 35679536930) and a clean run with
 three approvals is about six minutes -- both live would be half the slot.
 
