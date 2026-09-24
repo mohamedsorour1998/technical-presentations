@@ -132,9 +132,40 @@ tool has no business in an application's runtime dependencies.
   favourable results does not survive questions. Put the cost in one place, first-hand.
 - **Prefer your own measured failures to borrowed ones.** A published test on someone
   else's hardware can be dismissed as their broken setup. Your own cannot.
-- **An agenda slide early** so the audience stops tracking whether a topic is coming.
-- **A separate, brief speaker slide.** Three lines answering "why listen to this person
-  on this subject". Not a CV.
+## Every deck opens with a speaker page and an agenda — REQUIRED
+
+Slide 1 is the title, **slide 2 is the speaker page, slide 3 is the agenda**, in every
+talk and every pitch. This section used to be two bullets recommending both, and the
+DevOps Hackathon final deck shipped with neither until a reviewer asked "where is the
+agenda?". A recommendation gets fixed one deck at a time; a check gets fixed once.
+
+**The speaker page** — who is talking, and why listen to them on this subject:
+
+- one entry per presenter: photograph (pre-cropped square), full name, **title**, and
+  **workplace**. A team deck lists every member; a solo talk lists one person.
+- at most **one extra line** per person, and only where it earns its place (a degree
+  in progress relevant to the talk, a community role). Not a CV.
+- titles and workplaces come from **one source**. If an earlier deck for the same event
+  already carries them, copy that table and cite it in a comment, so the two decks
+  cannot disagree about who anybody is.
+
+**The agenda** — so the room stops tracking whether a topic is coming:
+
+- one row per section, in presentation order, each with **a one-line description** of
+  what it covers and **its minutes**. A bare list of section names is not enough.
+- the rows **name every required section** of the brief, and the demo and the
+  questions appear as rows of their own.
+- the minutes **sum to the slot**, including the opening, the demo and the questions.
+  An agenda that promises 23 minutes of a 20-minute slot is worse than none, because
+  the room believes it.
+
+**Enforce it in the build.** `talks/devops-hackathon-final/build_deck.py` has an
+`_opening` check passed to `verify(extra=...)` that fails when slides 2–3 are not the
+speaker page and agenda, when the agenda omits a required section, or when its minutes
+do not fill the slot. Copy it into every new talk, and prove it by breaking it: move
+the speaker page, drop a section, overfill the minutes — each must print a `FAIL`.
+Moving the speaker page to slide 3 is **not** a valid break; the check allows either
+order within slides 2–3, and that inert mutation has already been made once.
 
 ## Two genres, one discipline
 
@@ -372,6 +403,39 @@ header does the work a border would.
 - Watch the **right edge**. A grid widened past the slide went unreported until the
   bounds check covered all four sides, not just the bottom.
 
+### The one exception — an AWS architecture diagram
+
+The official AWS icons exist only as draw.io stencils, and an architecture slide drawn
+from text boxes reads as a box chart ("the architecture slide is really bad"). So that
+one slide embeds an image. `talks/devops-hackathon-final/architecture/make_architecture.py`
+is the reference: a script writes the `.drawio` XML and the draw.io desktop CLI renders
+it at `--scale 3`.
+
+- **Install draw.io into `~/Applications`** from the official jgraph release (`gh
+  release download -R jgraph/drawio-desktop`), and check `codesign --verify` passes.
+  Homebrew's prefix on this machine is owned by another account, and the fix it
+  suggests (`sudo chown -R` on the whole prefix) takes it away from them.
+- **Read icon names out of draw.io's own library, never from memory.** A wrong
+  `resIcon` renders as a plain coloured square and raises no error: ECR is
+  `mxgraph.aws4.ecr`, not `elastic_container_registry`. Search the app bundle with
+  `strings …/app.asar | grep mxgraph.aws4.`. Where there is no icon (our own code, the
+  deterministic rule) draw a plain shape; do not borrow an AWS icon for it.
+- **Follow AWS's own conventions:** an AWS Cloud group with the region, sub-groups for
+  areas, category colours per service, and the request's path marked with numbered
+  circles that the speaker walks in order.
+- **Render, then look at the PNG, before it goes near the deck.** The first render of
+  the reference diagram had badges on top of labels, three arrows stacked in one gap,
+  and a label crossed by its own arrow. Every fix was structural — one lane per
+  cross-group arrow, the label above an icon whose arrow leaves from its bottom — and
+  each needed a fresh render to confirm.
+- **Size the text for the projector, and measure it.** Point size on the slide is
+  `px / (canvas px ÷ slide inches) × 72`. The reference diagram, 11.71 × 6.02in on the
+  slide: icon labels 9.2pt, area labels 9.7pt, **edge labels 8.1pt** — the smallest
+  text in the deck, tolerable only because the speaker narrates every numbered step.
+  Do not go below it.
+- **Every box is a claim.** Check each against the system's own documentation. The
+  first draft carried a table the pipeline does not actually use.
+
 ### Render it and look at it
 
 The validator checks colour, not layout. If the deck cannot be rendered locally — no
@@ -542,6 +606,7 @@ the `extra=` hook. Each one caught a real defect.
 | **capitalisation** in 15–24pt body text | shouting lead-ins had reached six slides |
 | required sections present | a deck that reads well and omits a required topic fails the brief |
 | **exposition order** by slide position | quantization must precede the demo that uses it |
+| **the opening** — speaker page and agenda at slides 2–3 | a finals deck shipped with neither while this file recommended both |
 | **figures vs the recording** | a slide must not contradict the video playing beside it |
 
 On the layout check specifically: the question is wrapped **height**, not line width.
