@@ -12,9 +12,11 @@ architectures, rendered to PNG for a slide.
     drawio.build(d, HERE / "architecture")     # writes .drawio, checks icons, renders .png
 
 WHY AN IMAGE AT ALL. deckkit draws charts as vector shapes, because a projector
-softens a raster. An architecture diagram is the one exception: the official AWS icons
-exist only as draw.io stencils, and without them the slide reads as a box chart. Render
-at --scale 3 so the rescale stays sharp.
+softens a raster. An architecture diagram is the one exception. AWS does publish its
+icons as SVG and PNG, but python-pptx cannot place an SVG, and placing icons and routing
+arrows by hand in slide shapes is what produced an unreadable box chart. draw.io ships
+the whole AWS library as named stencils, routes orthogonal connectors, and renders from a
+CLI. Render at --scale 3 so the projector's rescale stays sharp.
 
 WHY A SCRIPT, NOT A HAND-DRAWN FILE. Coordinates in code make a layout change a diff
 somebody can review, and the diagram regenerates when the system changes. The written
