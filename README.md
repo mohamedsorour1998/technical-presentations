@@ -18,6 +18,7 @@ deckkit/drawio.py             architecture diagrams, styled as AWS reference arc
 deckkit/record.py             runs a demo's real commands and renders them as video
 deckkit/crop_photo.py         square-crops a portrait for the speaker page
 deckkit/build_to.py           builds a talk to a temporary path, leaving its committed deck alone
+deckkit/snapshot.py           renders a deck in PowerPoint: one PNG per slide, plus the PDF
 talks/<name>/                 one talk: its constants, slides, demos, diagram and deliverables
 ```
 
@@ -53,6 +54,14 @@ as an AWS reference architecture: the official icons in AWS's category colours, 
 Cloud group with labelled areas, and the request's path as numbered steps. It refuses an
 icon name draw.io does not have (a wrong one renders as a blank square), renders the PNG
 at 3× with the draw.io CLI, and `pages.diagram_page` places it on a full slide.
+
+**Rendering in PowerPoint** — `deckkit/snapshot.py` opens the deck in PowerPoint, exports
+a PDF and splits it into one PNG per slide with macOS's PDFKit, so every slide can be
+looked at exactly as the projector will show it. Every defect a reviewer found in one
+deck had passed all the checks; this is how they are found before a reviewer does.
+
+**Speaker notes** — the rehearsal script is the speaker notes. Each slide's section is
+copied into its notes at build time, and the build fails if the script and the deck drift.
 
 **Recorded demonstrations** — `deckkit/record.py` executes a demo's real commands, keeps
 their actual output and elapsed time, and renders the session as a terminal video in the

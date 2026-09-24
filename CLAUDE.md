@@ -14,6 +14,7 @@ deckkit/drawio.py          architecture diagrams as AWS reference architectures 
 deckkit/record.py          runs a demo's real commands and renders them as video
 deckkit/crop_photo.py      square-crops a portrait for the speaker page
 deckkit/build_to.py        builds a talk to a temporary path, leaving its committed deck alone
+deckkit/snapshot.py        renders a deck in PowerPoint: one PNG per slide, plus the PDF
 talks/<name>/build_deck.py one talk's constants, slides, and its own checks
 talks/<name>/record_demo.py one talk's demo definitions
 talks/<name>/architecture/ one talk's diagram: make_architecture.py, .drawio, .png
@@ -110,6 +111,7 @@ deckkit/drawio.py                 architecture diagrams — Part 3
 deckkit/record.py                 runs demo commands for real and renders them as video — Part 4
 deckkit/crop_photo.py             square-crops a portrait for the speaker page
 deckkit/build_to.py               builds a talk to a temporary path — Part 7
+deckkit/snapshot.py               renders the deck as PowerPoint draws it — Part 5
 talks/<name>/build_deck.py        constants, slide functions, talk-specific checks
 talks/<name>/pitch/preview/       the browser design mirror
 ```
@@ -247,6 +249,26 @@ submission.
   that produced it. Re-run those before presenting.
 - **Budget the clock against the whole slot**, including demonstrations and questions.
   Twenty minutes of slides plus an eight-minute demo does not fit in thirty.
+- **The title slide's largest text is the project's name.** A deck that led with its
+  tagline and set the name in 12pt beneath it drew "the page should be titled with the
+  project's name" from its first reviewer.
+- **Write for the room, not for the codebase.** No exit codes ("exit 2 denies", "the job
+  exits 3"), no internal names ("fixture", "harness", "seam"), no lab jargon ("positive
+  control", "a broken grep"). The test: would a judge who has never opened the repository
+  understand the sentence? A reviewer asked "what does exit 2 mean?" of a slide whose whole
+  point was that three products fail open — the point was lost to the notation. Say what
+  the code means: "if the hook itself fails, the action goes ahead".
+- **Re-measure every figure before you rebuild, and read what it measures.** One deck
+  carried a dependency count a month stale ("1 of 50", now "8 of 83"), and a row saying a
+  reviewer's "miss rate moved 6/8 → 8/8" — it was the CATCH rate, so the slide stated the
+  opposite of the result. Reading a number's label is part of re-measuring it.
+- **The slide and the live screen must agree, or the script must say why.** A diagram
+  marked the stage that refused a change; the product marks the job that contains it. A
+  judge who sees both thirty seconds apart asks. Either draw what the screen will show, or
+  put the one-line explanation in the rehearsal script and the demo plan.
+- **Never promise a fallback that does not exist.** A rehearsal script's contingencies said
+  "play the recording on the same slide" for a deck with no recording in it. On stage that
+  is discovered at the worst moment. Name a fallback you have checked is there.
 
 ## Register — technical, neutral, professional
 
@@ -299,6 +321,19 @@ SANS, MONO = "Helvetica Neue", "Menlo"
   mint say "wrong" and "right". Dim and cyan say "the other option" and "the one
   selected", which is what you mean.
 - **Identifiers go in mono** — service names, filenames, flags. They are code.
+
+### A colour with no stated meaning is noise
+
+One reviewer asked "why is this a different colour?" of an agenda with two rows in cyan,
+a table with one row in cyan, whole paragraphs set in cyan, and slides with mint and rose
+bands — five times in one deck. Every one had a reason in the author's head and none on
+the slide. The rule since:
+
+- **One accent, for structure only** — kickers, rules, figures, card titles, numbering.
+  Body text is ink or dim. A takeaway sentence is body text, bold if it must stand out.
+- **No highlighted row or paragraph** unless the speaker says why in the same breath.
+- **Mint and rose carry a STATE, with words beside them** — a stage that ran, the one
+  that stopped the run. Never a slide band chosen for mood.
 
 ### Rebranding a talk — use `palette()`, never reassignment
 
@@ -434,7 +469,10 @@ Text boxes, not a real PowerPoint table: a table re-imposes its own banded fills
 dark surface and is awkward to position against hand-placed text. A hairline under the
 header does the work a border would.
 
-**Highlight exactly one row.** A comparison that emphasises everything emphasises nothing.
+**Highlight at most one row — and only when the speaker says why in the same breath.**
+Otherwise highlight none: a highlighted row nobody explains reads as noise (see Colour).
+Cells that hold sentences take `table(..., mono=False)`; monospace is for identifiers, and
+a column of prose in monospace beside a sans label column read as "alternating colours".
 
 ### Marks and anatomy
 
@@ -453,9 +491,10 @@ image, styled as an AWS reference architecture with the official icons, built by
 
 ### Render it and look at it
 
-The validator checks colour, not layout. If the deck cannot be rendered locally — no
-LibreOffice, and PowerPoint's subscription dialog blocks scripted export — say so plainly
-and have the human click through, rather than claiming the charts are verified.
+The checks estimate; they do not see. Render the deck in PowerPoint with
+`deckkit.snapshot` and look at every slide before calling a chart or a slide done — Part 5
+has the method. If it cannot be rendered on the machine at hand, say so plainly and have a
+person click through, rather than claiming anything is verified.
 
 ## Photographs
 
@@ -844,6 +883,7 @@ the `extra=` hook. Each one caught a real defect.
 | transitions and `animEffect` counted per slide | the library cannot tell you they are missing |
 | **element order** `cSld, clrMapOvr, transition, timing` | wrong order makes PowerPoint open the file as "Repaired" |
 | **wrapped-height** collisions | a width-only check reported clean while six boxes overlapped |
+| **a heading rule through text** | the rule struck through body text or a table header on three slides; a reviewer read it as a strike-through |
 | **shape bounds**, all four edges | a table ran off the right of the slide unreported — the audit only looked down |
 | banned language | anthropomorphism and dramatised headings creep back while editing prose |
 | **capitalisation** in 15–24pt body text | shouting lead-ins had reached six slides |
@@ -851,18 +891,81 @@ the `extra=` hook. Each one caught a real defect.
 | **exposition order** by slide position | quantization must precede the demo that uses it |
 | **the opening** — speaker page and agenda at slides 2–3, `pages.opening_check` | a deck shipped with neither while this file only recommended both |
 | **figures vs the recording** | a slide must not contradict the video playing beside it |
+| **speaker notes in sync**, `pages.notes_check` | a reordered deck with a stale script puts the wrong notes under the presenter |
 
 One more check runs earlier, when an architecture diagram is built: `drawio.build`
 refuses an icon name draw.io does not have, because a wrong one renders as a blank
 square and raises nothing (Part 3).
 
-On the layout check specifically: the question is wrapped **height**, not line width.
-With `word_wrap` on, a long line does not overflow sideways — it wraps, and the box grows
-**downward** into whatever sits below. Compare boxes only where they overlap
-horizontally; two columns side by side share a vertical band by design, and flagging
-those makes the audit cry wolf.
+### How the layout estimate works — and what it cannot do
 
-Then `file -b deck.pptx` should say `Microsoft OOXML`, and **open it and click through**.
+The question is wrapped **height**, not line width: with `word_wrap` on, a long line wraps
+and the box grows **downward** into whatever sits below.
+
+- **Per-character widths**, roughly Helvetica Neue's: narrow `i l t`, wide `m w M W`,
+  capitals wider than lower case, **bold about 6% wider**, **monospace a flat 0.6 em**. A
+  single average width for all text was wrong in both directions — it passed a bold
+  two-word name that PowerPoint wrapped onto the title below, and failed three headings
+  that fit on one line.
+- **Wrapping at words**, as PowerPoint does, inside the frame's 0.1in insets, at the
+  paragraph's own line spacing.
+- **Each box against the nearest box below it that it overlaps horizontally** — not
+  against the next box in top-to-bottom order. Three figures side by side share one top,
+  so pairing by order compared a figure with its neighbour and never with its own label,
+  and a price that wrapped onto its label went unreported.
+- **0.02in of tolerance**: the estimate carries about ±0.05in, and a render of a 0.01in
+  "overlap" showed clear space between the paragraphs.
+- **Calibrated against renders**: seven cases a person had seen in PowerPoint, seven
+  agree. Re-calibrate after changing the widths — against renders, not against belief.
+
+It remains a smoke alarm. It cannot see colour, meaning, jargon, or how a rule looks — so
+**render and look**, below. Then `file -b deck.pptx` should say `Microsoft OOXML`.
+
+## Render the deck in PowerPoint, and look at every slide
+
+```zsh
+.venv-deck/bin/python -m deckkit.snapshot talks/<name>/pitch/<Name>.pptx /tmp/shots
+```
+
+One PNG per slide in `/tmp/shots`, plus the PDF, **drawn by PowerPoint itself** — exactly
+what the projector will show. Then open every PNG: an agent reads them with its image
+tool, a person opens the folder. Every defect in the table below reached a reviewer after
+all the checks above had passed.
+
+**How it works.** PowerPoint's AppleScript `save ... as save as PNG` exits 0 and writes
+nothing — measured, two ways. `save ... as save as PDF` works. So the tool copies the deck
+into PowerPoint's sandbox container (it cannot write elsewhere), opens it, exports a PDF,
+waits, closes its copy, and splits the PDF into PNGs with macOS's own PDFKit
+(`deckkit/pdf2png.swift`, run by `swift` — nothing to install beyond Xcode's command-line
+tools). The first run may ask to let the terminal control PowerPoint; allow it.
+
+**The traps, each paid for once:**
+
+- **Closing straight after the export cancels it.** `save as PDF` returns before the file
+  is written; an immediate `close` produced "User canceled (-128)" and no PDF. The tool
+  polls until the PDF's size stops changing.
+- **Close only your own copy, by name.** `close every presentation` would close the
+  person's work. Quit PowerPoint only if this run started it.
+- **A deck with embedded video can raise a modal prompt during PDF export.** No script can
+  answer it; PowerPoint then answers every command with "User canceled", quit included.
+  The tool ends PowerPoint by force only when it started it and it holds no presentation.
+- **A stuck PowerPoint answers "-9074" to everything.** That was the process a cancelled
+  export left behind, not a locked screen — the lock state read clear. Check
+  `count presentations` is 0, end it, retry.
+- **Never render a deck that is open.** A `~$<Name>.pptx` lock file beside it means the
+  person has it open; the tool refuses.
+
+**What to look for in every PNG** — each found in one deck, after the checks had passed:
+
+| Look for | Found as |
+|---|---|
+| a line through text | the heading rule striking through body text and table headers |
+| text on text | a two-line name over a title; a price wrapped onto its label |
+| a colour with no stated meaning | cyan agenda rows, a cyan table row, cyan paragraphs, mint and rose bands |
+| notation the room cannot read | "exit 2 denies", "[NEXT]", "fixture" |
+| a claim that no longer holds | a stale count; a "miss rate" that was a catch rate; a garbled "99.9% of nothing" |
+| a stray fragment | a "·" separator left alone at the start of a wrapped line |
+| uneven rhythm | bullets spaced for two lines where one item had one |
 
 ## Prove a check works by breaking it
 
@@ -906,6 +1009,24 @@ it fixes.
 
 ---
 
+## Speaker notes are the rehearsal script
+
+`pitch/REHEARSAL.md` is written as one section per slide, headed
+`## <n> · <the slide's heading> — <m:ss>`, with **SAY** and **IF ASKED** paragraphs.
+`pages.rehearsal()` reads it, `add_notes()` writes each section into its slide's speaker
+notes, and `pages.notes_check()` fails the build if a slide has no section, a section has
+no SAY text, or a section's title is not on its slide:
+
+```python
+out = build(SLIDES, OUT)
+add_notes(out, {n: notes for n, (_title, notes) in pages.rehearsal(SCRIPT).items()})
+verify(out, SLIDES, ..., extra=[..., pages.notes_check(SCRIPT)])
+```
+
+So Presenter View shows exactly what was rehearsed, and a reordered deck cannot keep a
+stale script. **Edit the script, then rebuild; never type notes into PowerPoint.** Keep an
+em dash out of a section title — the timing sum above reads the title up to the first one.
+
 # Part 6 · Deliverables and layout
 
 ```
@@ -916,6 +1037,8 @@ deckkit/drawio.py                architecture diagrams -> .drawio -> .png
 deckkit/record.py                the demo recorder
 deckkit/crop_photo.py            portrait cropping
 deckkit/build_to.py              build a talk elsewhere: an open deck, an engine check
+deckkit/snapshot.py              render a deck in PowerPoint, one PNG per slide
+deckkit/pdf2png.swift            split a PDF into PNGs with PDFKit
 talks/<name>/
     build_deck.py                constants, slide functions, talk-specific checks
     record_demo.py               demo definitions
@@ -929,7 +1052,8 @@ talks/<name>/
     pitch/
         <Name>.pptx              the deck — videos travel inside it
         DEMO-PLAN.md             what each demonstration shows (goes to organisers)
-        REHEARSAL.md             speaking script, timings, contingencies, Q&A (private)
+        REHEARSAL.md             speaking script, timings, contingencies, Q&A — and the speaker notes
+        HANDOUT.md               the team's study guide: slides, numbers, demo, who answers what
         video/*.mp4 *.png        recordings and their poster frames
         preview/index.html       the design mirror
         photos/square/           pre-cropped 640×640 portraits
@@ -1024,6 +1148,18 @@ Lessons from this project that cost real time:
 - **Name where you searched before saying something is absent.** "No renderer here" means
   "not in `/Applications`, `~/Applications` or `PATH`" — say that, so the next person can
   see the shape of the hole.
+- **A reviewer's eye beat every estimator, so make the eye repeatable.** Every defect a
+  person reported was invisible to checks that passed. Rendering the deck in PowerPoint and
+  reading each slide turned that from a favour into a step.
+- **Test a new check on the defects that prompted it before anything else.** The rule and
+  wrap checks were run first against the unfixed deck: they had to fail on exactly the
+  slides the reviewer named, and they did — and they also flagged two headings that were
+  fine, which is how the flat glyph width was found wrong.
+- **A stricter check surfaces old defects; do not loosen it to pass them.** The new audit
+  fails two delivered decks — one confirmed by render as a real overlap. They are left as
+  presented and the finding recorded, rather than the check weakened to keep them green.
+- **A team handout is a deliverable**, with its own rule: every number in it is on a slide
+  or measured, and each person's lines come from what that person built.
 - **Never take over a shared tool to install one of your own.** A package-manager prefix
   owned by another account stays theirs; install user-local (Part 3 does this for
   draw.io).
