@@ -73,12 +73,12 @@ LINE, INK, DIM = deck.LINE, deck.INK, deck.DIM
 CYAN, MINT, ROSE = deck.CYAN, deck.MINT, deck.ROSE
 
 # ── figures — each with the command that produced it, re-run 2026-09-22 ───────
-PY_TESTS = 2171          # .venv-main/bin/python -m pytest --collect-only -q | tail -1
+PY_TESTS = 2172          # .venv-main/bin/python -m pytest --collect-only -q | tail -1   (2026-09-24)
 PY_FILES = 93            # ls tests/test_*.py | wc -l
 WEB_TESTS = 311          # cd web && npx vitest run   -> Tests 311 passed
 WEB_FILES = 24           # ls web/{__tests__,lib/__tests__,components/__tests__}/*.ts | wc -l
 WORKFLOWS = 5            # ls .github/workflows/*.yml | wc -l
-RUNTIME_VERSION = 52     # scripts/preflight.py check 2
+RUNTIME_VERSION = 54     # scripts/preflight.py check 2   (2026-09-24, all five READY)
 
 # docs/final/evidence/cost-comparison.md, three consecutive clean runs
 COST_LOW = "0.013"       # $0.013036

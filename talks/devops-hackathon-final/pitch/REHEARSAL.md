@@ -182,7 +182,7 @@ raises rather than returning an empty list of findings.
 
 ## 9 · What is built — 0:45
 
-**SAY** Two thousand one hundred and seventy-one automated tests across ninety-three
+**SAY** Two thousand one hundred and seventy-two automated tests across ninety-three
 files, plus three hundred and eleven for the web application. Five agent runtimes
 deployed, all reporting ready at the same version — a split version would mean a
 partial deploy and we check for it before every demo. It runs in the cloud on a real
