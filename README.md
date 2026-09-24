@@ -13,9 +13,12 @@ shouting capitals.
 ```
 CLAUDE.md                     the method — read this first
 deckkit/deck.py               the slide engine: palette, primitives, charts, motion, verification
+deckkit/pages.py              the speaker page, the agenda, a diagram page, the opening check
+deckkit/drawio.py             architecture diagrams, styled as AWS reference architectures
 deckkit/record.py             runs a demo's real commands and renders them as video
-deckkit/crop_photo.py         square-crops a portrait for the speaker slide
-talks/<name>/                 one talk: its constants, slides, demos and deliverables
+deckkit/crop_photo.py         square-crops a portrait for the speaker page
+deckkit/build_to.py           builds a talk to a temporary path, leaving its committed deck alone
+talks/<name>/                 one talk: its constants, slides, demos, diagram and deliverables
 ```
 
 `deckkit` knows nothing about any particular talk. Content lives under `talks/`.
@@ -30,7 +33,8 @@ uv pip install --python .venv-deck/bin/python "python-pptx>=1.0,<2" Pillow
 ```
 
 To start a new talk, copy a talk directory, replace the constants and the slide
-functions, and leave `deckkit` alone.
+functions, and leave `deckkit` alone. Architecture diagrams also need draw.io desktop —
+CLAUDE.md, Part 3, covers installing it without touching a shared Homebrew prefix.
 
 ## What the toolkit does
 
@@ -38,6 +42,17 @@ functions, and leave `deckkit` alone.
 Bar, line and positioning charts drawn as vector shapes so a projector cannot soften
 them. Transitions and click-advanced fade animations written as raw XML, because
 `python-pptx` models shapes and text but not the timing tree.
+
+**The opening** — every deck starts with a speaker page (photograph, name, title,
+workplace) and an agenda (each section, a one-line description, its minutes).
+`deckkit/pages.py` draws both, and the build fails if either is missing, out of place,
+omits a required section, or promises more minutes than the slot holds.
+
+**Architecture diagrams** — `deckkit/drawio.py` builds a draw.io diagram in code, styled
+as an AWS reference architecture: the official icons in AWS's category colours, an AWS
+Cloud group with labelled areas, and the request's path as numbered steps. It refuses an
+icon name draw.io does not have (a wrong one renders as a blank square), renders the PNG
+at 3× with the draw.io CLI, and `pages.diagram_page` places it on a full slide.
 
 **Recorded demonstrations** — `deckkit/record.py` executes a demo's real commands, keeps
 their actual output and elapsed time, and renders the session as a terminal video in the
@@ -59,6 +74,11 @@ laptop.
 **`talks/rosettacloud-genai-hackathon/`** — a 14-slide pitch deck answering a hackathon
 upload specification. A rebranded palette, its own layout helper, no recordings. It
 needed no change to the engine, which is the point of the split.
+
+**`talks/devops-hackathon-final/`** — a 17-slide finals pitch deck in twenty minutes
+including a live demo and questions. The reference for the speaker page and agenda, and
+for an AWS reference-architecture diagram with fourteen service icons and eight numbered
+steps.
 
 ## Licence
 

@@ -9,10 +9,14 @@ decisions.** Every rule here cost a real debugging cycle or a round of review fe
 
 ```
 deckkit/deck.py            the engine: palette, primitives, charts, motion, verification
+deckkit/pages.py           the speaker page, the agenda, a diagram page, the opening check
+deckkit/drawio.py          architecture diagrams as AWS reference architectures (Part 3)
 deckkit/record.py          runs a demo's real commands and renders them as video
-deckkit/crop_photo.py      square-crops a portrait for the speaker slide
+deckkit/crop_photo.py      square-crops a portrait for the speaker page
+deckkit/build_to.py        builds a talk to a temporary path, leaving its committed deck alone
 talks/<name>/build_deck.py one talk's constants, slides, and its own checks
 talks/<name>/record_demo.py one talk's demo definitions
+talks/<name>/architecture/ one talk's diagram: make_architecture.py, .drawio, .png
 ```
 
 The engines know nothing about any particular presentation. **To start a new talk, copy a
@@ -25,7 +29,11 @@ uv pip install --python .venv-deck/bin/python "python-pptx>=1.0,<2" Pillow
 
 .venv-deck/bin/python talks/<name>/build_deck.py       # build and verify the deck
 .venv-deck/bin/python talks/<name>/record_demo.py --list
+.venv-deck/bin/python talks/<name>/architecture/make_architecture.py   # needs draw.io, Part 3
 ```
+
+**Every deck opens with a speaker page and an agenda** (Part 2), and the build fails
+without them. An architecture slide is drawn as an AWS reference architecture (Part 3).
 
 Dependencies stay in a **dev-only** extra. A presentation tool has no business in an
 application's runtime dependencies.
@@ -93,13 +101,17 @@ modify source media, and do not print transcript contents unless asked.
 
 # Part 2 · Building a presentation
 
-A working implementation is in this repo and is the reference:
+The engine is `deckkit/`; each talk under `talks/<name>/` supplies only its content:
 
 ```
-scripts/build_deck.py      the generator — slides, charts, motion, self-checks
-scripts/record_demo.py     runs demo commands for real and renders them as video
-scripts/crop_photo.py      square-crops a portrait for the speaker slide
-pitch/preview/index.html   the browser design mirror
+deckkit/deck.py                   primitives, charts, motion, build, verify
+deckkit/pages.py                  the speaker page, the agenda, a diagram page, the opening check
+deckkit/drawio.py                 architecture diagrams — Part 3
+deckkit/record.py                 runs demo commands for real and renders them as video — Part 4
+deckkit/crop_photo.py             square-crops a portrait for the speaker page
+deckkit/build_to.py               builds a talk to a temporary path — Part 7
+talks/<name>/build_deck.py        constants, slide functions, talk-specific checks
+talks/<name>/pitch/preview/       the browser design mirror
 ```
 
 **Adapt these rather than rebuilding.** Every rule below cost a real debugging cycle or
@@ -132,12 +144,13 @@ tool has no business in an application's runtime dependencies.
   favourable results does not survive questions. Put the cost in one place, first-hand.
 - **Prefer your own measured failures to borrowed ones.** A published test on someone
   else's hardware can be dismissed as their broken setup. Your own cannot.
+
 ## Every deck opens with a speaker page and an agenda — REQUIRED
 
 Slide 1 is the title, **slide 2 is the speaker page, slide 3 is the agenda**, in every
-talk and every pitch. This section used to be two bullets recommending both, and the
-DevOps Hackathon final deck shipped with neither until a reviewer asked "where is the
-agenda?". A recommendation gets fixed one deck at a time; a check gets fixed once.
+talk and every pitch. This section used to be two bullets recommending both, and a deck
+shipped with neither until a reviewer asked "where is the agenda?". A recommendation gets
+fixed one deck at a time; a check gets fixed once.
 
 **The speaker page** — who is talking, and why listen to them on this subject:
 
@@ -159,13 +172,42 @@ agenda?". A recommendation gets fixed one deck at a time; a check gets fixed onc
   An agenda that promises 23 minutes of a 20-minute slot is worse than none, because
   the room believes it.
 
-**Enforce it in the build.** `talks/devops-hackathon-final/build_deck.py` has an
-`_opening` check passed to `verify(extra=...)` that fails when slides 2–3 are not the
-speaker page and agenda, when the agenda omits a required section, or when its minutes
-do not fill the slot. Copy it into every new talk, and prove it by breaking it: move
-the speaker page, drop a section, overfill the minutes — each must print a `FAIL`.
-Moving the speaker page to slide 3 is **not** a valid break; the check allows either
-order within slides 2–3, and that inert mutation has already been made once.
+**Build both with `deckkit.pages`, and enforce them in the build:**
+
+```python
+from deckkit import pages
+
+TEAM = [pages.Person("me.jpg", "Full Name", "Senior Engineer", "EMPLOYER",
+                     extra="one more line, only if it earns its place"), ...]
+AGENDA = [pages.Section("Overview", "the problem and the claim", 3),
+          pages.Section("Live demonstration", "what the room will see", 5, highlight=True),
+          pages.Section("Questions", "the rest of the slot", 5, highlight=True), ...]
+
+def slide_team(prs):
+    pages.speaker_page(prs, TEAM, photo_dir=ROOT / "pitch" / "photos" / "square",
+                       heading_text="The team", note="one sentence on how you worked")
+
+def slide_agenda(prs):
+    pages.agenda_page(prs, AGENDA, heading_text="Twenty minutes, in this order")
+
+verify(out, SLIDES, ..., extra=[pages.opening_check(
+    AGENDA, required=_REQUIRED, slot_minutes=20, opening_minutes=1)])
+```
+
+- `speaker_page` draws each person as photograph, name, title, workplace (a small
+  upper-case label, so give it in capitals) and the optional extra line. A missing
+  photograph degrades to a ring, so the deck still builds.
+- `agenda_page` draws number, section, description and minutes, all at once. An agenda
+  revealed row by row is slower than the talk it introduces, so count it in `static=`.
+- `opening_check` fails when slides 2–3 are not the speaker page and the agenda (either
+  order), when the agenda omits a required section, or when `opening_minutes` plus the
+  rows' minutes do not equal the slot. It finds the pages by slide-function name,
+  `slide_team` and `slide_agenda` by default; pass `speaker=`/`agenda=` otherwise.
+
+**Prove it by breaking it**, all three ways: move the speaker page to the end, drop a
+required section from the agenda, overfill the minutes. Each must print its `FAIL`.
+Swapping the speaker page and the agenda is **not** a valid break: the check allows
+either order within slides 2–3, and that inert mutation has already been made once.
 
 ## Two genres, one discipline
 
@@ -403,38 +445,11 @@ header does the work a border would.
 - Watch the **right edge**. A grid widened past the slide went unreported until the
   bounds check covered all four sides, not just the bottom.
 
-### The one exception — an AWS architecture diagram
+### The one exception — an architecture diagram
 
-The official AWS icons exist only as draw.io stencils, and an architecture slide drawn
-from text boxes reads as a box chart ("the architecture slide is really bad"). So that
-one slide embeds an image. `talks/devops-hackathon-final/architecture/make_architecture.py`
-is the reference: a script writes the `.drawio` XML and the draw.io desktop CLI renders
-it at `--scale 3`.
-
-- **Install draw.io into `~/Applications`** from the official jgraph release (`gh
-  release download -R jgraph/drawio-desktop`), and check `codesign --verify` passes.
-  Homebrew's prefix on this machine is owned by another account, and the fix it
-  suggests (`sudo chown -R` on the whole prefix) takes it away from them.
-- **Read icon names out of draw.io's own library, never from memory.** A wrong
-  `resIcon` renders as a plain coloured square and raises no error: ECR is
-  `mxgraph.aws4.ecr`, not `elastic_container_registry`. Search the app bundle with
-  `strings …/app.asar | grep mxgraph.aws4.`. Where there is no icon (our own code, the
-  deterministic rule) draw a plain shape; do not borrow an AWS icon for it.
-- **Follow AWS's own conventions:** an AWS Cloud group with the region, sub-groups for
-  areas, category colours per service, and the request's path marked with numbered
-  circles that the speaker walks in order.
-- **Render, then look at the PNG, before it goes near the deck.** The first render of
-  the reference diagram had badges on top of labels, three arrows stacked in one gap,
-  and a label crossed by its own arrow. Every fix was structural — one lane per
-  cross-group arrow, the label above an icon whose arrow leaves from its bottom — and
-  each needed a fresh render to confirm.
-- **Size the text for the projector, and measure it.** Point size on the slide is
-  `px / (canvas px ÷ slide inches) × 72`. The reference diagram, 11.71 × 6.02in on the
-  slide: icon labels 9.2pt, area labels 9.7pt, **edge labels 8.1pt** — the smallest
-  text in the deck, tolerable only because the speaker narrates every numbered step.
-  Do not go below it.
-- **Every box is a claim.** Check each against the system's own documentation. The
-  first draft carried a table the pipeline does not actually use.
+Charts are drawn as shapes. An **architecture diagram** is the one slide that embeds an
+image, styled as an AWS reference architecture with the official icons, built by
+`deckkit/drawio.py` and placed by `pages.diagram_page`. The whole method is **Part 3**.
 
 ### Render it and look at it
 
@@ -495,7 +510,235 @@ Rules that matter more than the mechanism:
 
 ---
 
-# Part 3 · Recording demonstrations as video
+# Part 3 · Architecture diagrams — styled as an AWS reference architecture
+
+When a talk needs "what runs where", draw it the way AWS draws its reference
+architectures: the official service icons, grouped into labelled areas inside an AWS
+Cloud group, with the request's path marked as numbered steps the speaker walks in
+order. It is the one slide in a deck that embeds an image, and the one where a reviewer
+most readily judges the whole project by how it looks.
+
+## Why draw.io, and why from a script
+
+- **Why an image at all.** AWS publishes its icons as SVG and PNG, but `python-pptx`
+  cannot place an SVG, and hand-placing icons and routing arrows in slide shapes
+  produced a slide of text chips that a reviewer called "really bad". draw.io ships the
+  whole AWS library as named stencils, routes orthogonal connectors, and renders headless
+  from a CLI.
+- **Why a script, not a hand-drawn file.** Coordinates in code make a layout change a
+  reviewable diff, and the diagram regenerates when the system changes. The written
+  `.drawio` still opens in draw.io for a hand edit; re-running the script overwrites it,
+  so move a hand edit back into the script.
+- **Why render at `--scale 3`.** A projector rescales the slide; at 3× the text stays
+  sharp. A 1560 × 800 canvas comes out near 1.3 MB, and the deck still emails.
+
+## Install draw.io desktop
+
+Needed only to render; the `.drawio` file itself is plain XML.
+
+```zsh
+# When Homebrew's prefix belongs to you:
+brew install --cask drawio
+
+# Otherwise -- or to avoid touching a shared prefix -- into ~/Applications:
+gh release view -R jgraph/drawio-desktop --json tagName,assets \
+   --jq '.tagName, (.assets[] | select(.name | test("arm64.*zip$")) | .name)'
+gh release download -R jgraph/drawio-desktop <tag> -p 'draw.io-arm64-<version>.zip' -D /tmp
+ditto -x -k /tmp/draw.io-arm64-<version>.zip ~/Applications/
+codesign --verify --deep --strict ~/Applications/draw.io.app && echo "signature valid"
+codesign -dv ~/Applications/draw.io.app 2>&1 | grep TeamIdentifier   # UZEUFB4N53 = JGraph
+~/Applications/draw.io.app/Contents/MacOS/draw.io --version
+```
+
+- **If `brew` reports its prefix is not writable, another macOS account owns it.** The
+  `sudo chown -R` it suggests takes Homebrew away from that account. Install user-local
+  instead; nothing shared is touched and no `sudo` is needed.
+- Take the `arm64` asset on Apple silicon, `x64` or `universal` on Intel.
+- `drawio.find_drawio()` looks in `~/Applications`, then `/Applications`, then `PATH`
+  (`drawio`, `draw.io`), and on failure names every place it looked — so "not found" is
+  never mistaken for "not installed".
+
+## The workflow
+
+```
+talks/<name>/architecture/
+    make_architecture.py     the layout, calling deckkit.drawio -- the only file you edit
+    architecture.drawio      written by the script; opens in draw.io
+    architecture.png         rendered at 3x; the slide embeds it
+    <vendor>-mark.svg        a non-AWS logo, from the vendor's own icon package
+```
+
+```python
+from deckkit import drawio
+from deckkit.drawio import AWS
+
+d = drawio.Diagram(1560, 800, theme=drawio.Theme(bg="#0B0F17", ink="#E8ECF3", ...))
+d.aws_cloud("aws", 470, 70, 1080, 722, "AWS Cloud · us-east-1")    # groups FIRST
+d.area("ingress", 500, 292, 1020, 150, "Ingress")
+d.icon("fn", "lambda", 600, 365, "AWS Lambda", "verifies the signature", AWS["compute"])
+d.edge("e2", "src", "fn", "signed webhook", points=[(440, 166), (440, 395)])
+d.badge(2, 478, 404)
+drawio.build(d, HERE / "architecture")    # writes .drawio, REFUSES unknown icons, renders .png
+```
+
+1. Sketch the areas and the request's path on paper first: which rows, which arrows
+   cross between groups, where the numbered steps go.
+2. Write the layout in `make_architecture.py` and run it.
+3. **Open the PNG and look at it** (see "Render, look, repeat" below). Fix, re-render,
+   look again; the reference diagram took four rounds.
+4. Embed it with `pages.diagram_page` (see "Placing it on the slide" below).
+5. Commit the script, the `.drawio` and the `.png` together.
+
+`Theme` holds the diagram's colours. Use the deck's palette so the image sits *in* the
+slide rather than on it: `drawio.Theme.from_deck()` reads it at call time after
+`deck.palette()`. A standalone script that never imports the deck passes the hex values
+explicitly.
+
+## AWS reference-architecture conventions
+
+| Element | Call | Rule |
+|---|---|---|
+| AWS Cloud | `d.aws_cloud(...)` | solid border, AWS logo in the corner; put the region in its label |
+| an area of the system | `d.area(...)` | dashed, label top-left. Group by what the reader asks ("the product", "ingress"), not by AWS service category |
+| an AWS service | `d.icon(id, res, x, y, title, detail, AWS[category])` | `title` is the official name (*Amazon DynamoDB*, *AWS Lambda*); `detail` is the one fact that matters here — a table name, what it verifies |
+| a person | `d.person(...)` | the AWS `user` shape; label on the side no arrow leaves from |
+| an external system | `d.area(...)` + `d.image(..., svg, fill=ink)` | its own group, its own mark. Take the SVG from the vendor's icon package — `npm pack @primer/octicons` for GitHub's — never retyped from memory. `fill` recolours a black mark for a dark page |
+| your own code | `d.hexagon(...)` or `d.box(...)` | **no AWS icon**: borrowing one claims a managed service that is not there |
+| the request's path | `d.badge(n, x, y)` | numbered circles in the accent colour, in the order the request travels. Six to nine steps is readable |
+
+**Category colours** are AWS's, Release 16 (2023-04-28), in `drawio.AWS`. Confirmed
+against AWS's icon deck and AWS Labs' `aws-icons-for-plantuml` before they went in;
+re-check at `aws.amazon.com/architecture/icons` when a new release ships.
+
+| Colour | `AWS[...]` keys |
+|---|---|
+| Smile `#ED7100` | `compute`, `containers` |
+| Cosmos `#E7157B` | `integration`, `management` |
+| Nebula `#C925D1` | `database`, `devtools` |
+| Mars `#DD344C` | `security`, `frontend` |
+| Orbit `#01A88D` | `ai`, `migration` |
+| Endor `#7AA116` | `storage`, `iot` |
+| Galaxy `#8C4FFF` | `networking`, `analytics`, `serverless` |
+
+**A service newer than the icon set** gets its parent service's icon, with the label
+carrying the precision — but look first: draw.io's library is updated more often than
+people assume, and the reference diagram's AgentCore and Nova icons both existed.
+
+## Icon names — look them up, never guess
+
+**A wrong `resIcon` renders as a plain coloured square, and draw.io raises nothing.**
+The first render of the reference diagram drew ECR that way: the name is `ecr`, not
+`elastic_container_registry`. So `drawio.build()` reads every AWS name out of draw.io's
+own bundle and refuses a diagram that uses one it lacks — before anything is written.
+
+```zsh
+.venv-deck/bin/python -c "import sys; sys.path.insert(0, '.'); from deckkit import drawio
+print(sorted(n for n in drawio.available_icons() if 'dynamo' in n))"
+```
+
+Names that are not what you would type: `ecr`, `cloudwatch_2`,
+`identity_and_access_management`, `secrets_manager`, `bedrock_agentcore`, `nova2`.
+
+**The lookup reads two patterns, and the first alone is wrong.** Older names appear in
+the bundle as literal `mxgraph.aws4.<name>`. Newer resource icons are built at runtime in
+the minified sidebar as `resIcon="+d+".<name>`, so the full name never appears as one
+string. A scanner reading only the literal pattern reported `bedrock_agentcore` and
+`nova2` missing while both rendered correctly — caught only because it was tested against
+names already known to render. **Test a detector on things known to exist, not only on
+things known to be absent.**
+
+## Layout — the rules that made it readable
+
+Every one of these came from a render that was wrong. None of the fixes was a nudge;
+each was structural.
+
+- **Draw groups first.** Cells paint in the order they are added; a group added last
+  covers everything inside it.
+- **One row per area, and icons in a row share a `y`.** A 20 px offset between two
+  icons turns a straight arrow into a kink.
+- **One lane per arrow that crosses between groups.** Route it through the empty band
+  between rows with explicit `points=`. Three arrows side by side in one gap read as a
+  single tangle; the reference diagram's first render had exactly that, and the fix was
+  moving a person and a row so each arrow got its own band.
+- **An arrow must never cross text.** When an arrow leaves an icon's bottom, put that
+  icon's label above it (`label_above=True`); give a person's label the side no arrow
+  uses (`position=`).
+- **Pin exits and entries** with `style="exitX=…;exitY=…;entryX=…;entryY=…"` when the
+  router picks a side that crosses something. Entering a tall group at height `y`:
+  `entryY = (y − group_top) / group_height`.
+- **Slide a label along its arrow** with `at=` (−1 at the source, 1 at the target) to
+  clear an icon or another label.
+- **Where two lines must cross, let them** — jump arcs (on by default) show it as a
+  crossing rather than a junction.
+- **Cut an arrow that crosses the whole diagram to say one thing.** Say it in a label
+  instead ("every stage writes it"). The reference diagram lost one long dashed arrow
+  this way and gained a clear lane.
+- **Badges beside labels, never on them**, and never over a group's title.
+- **Keep node labels short enough not to wrap.** Monospace text in a narrow box wraps
+  first; a job box reading `gate1 · a named reviewer` wrapped onto two lines, and the
+  fix was the word `gate1` with the reviewer drawn as a person beside it.
+- **Size the canvas to the slide area's aspect.** Under a compact head the area is about
+  11.7 × 6.0 in, so roughly 1.95:1 — 1560 × 800 is the reference.
+
+## Size the text for the projector, and measure it
+
+A label's size on the slide is `px ÷ (canvas px ÷ slide inches) × 72`, which is what
+`drawio.label_points(px, canvas_width_px=…, slide_width_in=…)` returns. Measured on the
+reference diagram, 11.71 × 6.02 in on the slide:
+
+| Label | Canvas px | On the slide |
+|---|---:|---:|
+| icon labels | 17 | 9.2 pt |
+| area labels | 18 | 9.7 pt |
+| arrow labels | 15 | **8.1 pt** |
+
+The arrow labels are the smallest text in a deck and are tolerable only because the
+speaker narrates every numbered step. **Do not go below them.** If a layout needs
+smaller text, it has too much in it — cut a node.
+
+## Render, look, repeat
+
+No check can see an arrow through a label. After every render, open the PNG — an agent
+reads it with its image tool, a person opens it — and look for:
+
+- a **plain coloured square** where an icon should be (a wrong name `build()` could not
+  read the library to catch);
+- **arrows crossing labels**, and **badges on top of labels or group titles**;
+- **parallel lines stacked in one gap**, and **kinks** from icons out of line;
+- **wrapped node labels**, and anything touching a group's border.
+
+Then render again and look again. Do not embed a diagram nobody has looked at.
+
+## Every box is a claim
+
+A diagram is read as evidence of how the system works, so check each box and arrow
+against the system's own documentation or code, and write down in the script's
+docstring what was checked and when. The reference diagram's first draft drew a database
+table the system does not actually use; it was caught by checking, not by looking.
+
+## Placing it on the slide
+
+```python
+def slide_architecture(prs):
+    pages.diagram_page(prs, ROOT / "architecture" / "architecture.png",
+                       kicker="architecture", heading_text="What runs where — follow the numbers")
+```
+
+- **A compact head, not `heading()`.** `heading()`'s rule sits at 2.06 in, which leaves a
+  diagram under five inches tall and its labels unreadable. `diagram_page` puts the
+  kicker at 0.30 in and the title at 0.62 in, and the image fills 1.36 → 7.38 in, fitted
+  by its real aspect ratio and centred — never stretched.
+- **A missing PNG degrades to a labelled placeholder**, so the deck builds on a machine
+  without draw.io.
+- **The slide has no entrance animation** — count it in `verify(static=…)`.
+- **Tell the room how to read it** in the title ("follow the numbers"), and have the
+  speaking script walk the numbered steps in order. Eight steps take about 1:10.
+- **Keep the kicker clear of the title.** The layout audit flagged a 0.06 in overlap
+  between them at 0.55 in; 0.62 in clears it.
+
+---
+
+# Part 4 · Recording demonstrations as video
 
 When a demo must not run live — a committee asks for it, or the stack is too flaky to
 trust on stage — record it and embed it. `deckkit/record.py` runs the real commands and
@@ -587,7 +830,7 @@ There is almost nothing left to go wrong, which is the point. What remains:
 
 ---
 
-# Part 4 · Self-verification — not optional
+# Part 5 · Self-verification — not optional
 
 A deck that silently lost its motion is byte-different and **visually identical until it
 is presented**, and `python-pptx` will never report it: it never knew those elements
@@ -606,8 +849,12 @@ the `extra=` hook. Each one caught a real defect.
 | **capitalisation** in 15–24pt body text | shouting lead-ins had reached six slides |
 | required sections present | a deck that reads well and omits a required topic fails the brief |
 | **exposition order** by slide position | quantization must precede the demo that uses it |
-| **the opening** — speaker page and agenda at slides 2–3 | a finals deck shipped with neither while this file recommended both |
+| **the opening** — speaker page and agenda at slides 2–3, `pages.opening_check` | a deck shipped with neither while this file only recommended both |
 | **figures vs the recording** | a slide must not contradict the video playing beside it |
+
+One more check runs earlier, when an architecture diagram is built: `drawio.build`
+refuses an icon name draw.io does not have, because a wrong one renders as a blank
+square and raises nothing (Part 3).
 
 On the layout check specifically: the question is wrapped **height**, not line width.
 With `word_wrap` on, a long line does not overflow sideways — it wraps, and the box grows
@@ -659,16 +906,24 @@ it fixes.
 
 ---
 
-# Part 5 · Deliverables and layout
+# Part 6 · Deliverables and layout
 
 ```
 CLAUDE.md                        this method
 deckkit/deck.py                  the slide engine
+deckkit/pages.py                 speaker page, agenda, diagram page, opening check
+deckkit/drawio.py                architecture diagrams -> .drawio -> .png
 deckkit/record.py                the demo recorder
 deckkit/crop_photo.py            portrait cropping
+deckkit/build_to.py              build a talk elsewhere: an open deck, an engine check
 talks/<name>/
     build_deck.py                constants, slide functions, talk-specific checks
     record_demo.py               demo definitions
+    architecture/
+        make_architecture.py     the diagram's layout, calling deckkit.drawio
+        architecture.drawio      written by the script; opens in draw.io
+        architecture.png         rendered at 3x; diagram_page embeds it
+        <vendor>-mark.svg        a non-AWS logo, from the vendor's own icon package
     bench/                       measured output — the source of every figure
     sources/                     research material (transcripts, notes)
     pitch/
@@ -698,13 +953,23 @@ a locally defined `_card_row` helper for a layout the engine does not provide, n
 recordings, and required sections taken from the brief. It needed no change to the engine,
 which is the point of the split.
 
+**`talks/devops-hackathon-final/`** — a 17-slide finals pitch deck, twenty minutes including
+the demo and the questions. The reference for **the opening** (a speaker page with each
+presenter's title and workplace, an agenda with minutes, `pages.opening_check`) and for
+**an architecture diagram** (`architecture/make_architecture.py`: an AWS Cloud group,
+three areas, fourteen AWS icons, a vendor mark, eight numbered steps). It uses the
+product's own palette, so the deck matches the app shown in the live demo, and its
+`pitch/REHEARSAL.md` walks the diagram's numbered steps.
+
 **A talk may add its own helpers.** If a layout is specific to one deck, define it in that
 deck's build script rather than growing the engine. Only promote something into `deckkit`
-when a second talk needs it.
+when a second talk needs it — or, like the speaker page, the agenda and the diagram, when
+this method requires it of every talk. When you promote, prove the move changed nothing:
+rebuild and compare the artefact itself (below).
 
 ---
 
-# Part 6 · Working method
+# Part 7 · Working method
 
 Lessons from this project that cost real time:
 
@@ -731,3 +996,34 @@ Lessons from this project that cost real time:
 - **The first reuse is the real test of an abstraction.** Splitting the engine out looked
   finished until a second deck used it, which immediately found a latent bug in how
   defaults bind. Build the second thing before believing the first one generalises.
+- **Prove a refactor by comparing the artefact, not by reading the code.** Moving the
+  diagram and page helpers into `deckkit` was verified by regenerating the `.drawio`
+  byte-for-byte and rebuilding the deck with all 73 archive parts identical (`docProps/`
+  timestamps excluded). A refactor that "looks the same" has not been checked.
+- **Building a talk writes its committed deck.** Checking that an engine change leaves
+  other talks building will rewrite their `.pptx` files. Build them elsewhere instead —
+  `.venv-deck/bin/python -m deckkit.build_to talks/<name>/build_deck.py /tmp/x.pptx` runs
+  the talk's own checks and exit code — or restore with `git checkout` afterwards.
+- **Never write a deck that is open in PowerPoint.** A `~$<Name>.pptx` lock file beside it
+  means it is open; a rebuild then races whatever the person saves. Use
+  `deckkit.build_to` and compare the archive parts instead.
+- **A same-size RED mutation can outlive its revert.** Python invalidates a cached
+  `.pyc` on a change of mtime or size, so a mutation that keeps the file's length (`5` →
+  `8`), reverted within the same second, leaves a cache entry that still validates. The
+  next build ran the MUTATED code while the source on disk was correct, and printed a
+  `FAIL` that looked like a failed restore. `deckkit.build_to` writes no bytecode for this
+  reason. Prefer mutations that change length; when a revert "does not take", delete
+  `__pycache__` before suspecting the edit.
+- **An inert mutation reads exactly like a caught one.** A break that swapped the speaker
+  page and the agenda — which the check allows — printed success, and would have been
+  recorded as proof. Show that each break changes the output; if it does not, it tested
+  nothing, so pick another and say so.
+- **Test a detector on things known to exist, not only on things known to be absent.** The
+  icon-name check caught every bad name and also rejected two good ones; only a list of
+  names already rendering correctly revealed it.
+- **Name where you searched before saying something is absent.** "No renderer here" means
+  "not in `/Applications`, `~/Applications` or `PATH`" — say that, so the next person can
+  see the shape of the hole.
+- **Never take over a shared tool to install one of your own.** A package-manager prefix
+  owned by another account stays theirs; install user-local (Part 3 does this for
+  draw.io).
