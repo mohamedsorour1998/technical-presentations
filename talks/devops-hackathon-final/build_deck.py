@@ -131,7 +131,7 @@ _BANNED = (
 # who anybody is. `extra` is one more line, used for one person only.
 TEAM = [
     pages.Person("sorour.jpg", "Mohamed Sorour", "Senior DevOps Engineer", "VEZEETA",
-                 "MSc student\nComputer Science\nAI specialization\nGeorgia Tech"),
+                 "AWS Community Builder\nMSc student\nComputer Science\nAI specialization\nGeorgia Tech"),
     pages.Person("mariam.jpg", "Mariam Abdelkader", "Associate Solution Engineer", "RENOSYSTEMS"),
     pages.Person("habiba.jpg", "Habiba Megahed", "Junior DevOps Engineer", "DIGILIANS ALUM"),
     pages.Person("reem.jpg", "Reem Shkeep", "Junior Testing Engineer", "DIGILIANS ALUM"),
@@ -145,10 +145,10 @@ AGENDA = [
     pages.Section("Architecture", "what runs where, on AWS and on GitHub", 1),
     pages.Section("Business impact", "what a change costs, and what it buys", 1),
     pages.Section("Differentiation", "what vendors say about their own AI review", 1),
-    pages.Section("Progress", "what is built, your ten notes, and what it does not do", 2),
+    pages.Section("Progress", "what is built, the knowledge base, your ten notes, the limits", 3),
     pages.Section("Future work", "what is next", 1),
     pages.Section("Live demonstration", "a ticket that pins a vulnerable library, refused", 5),
-    pages.Section("Questions", "the rest of the slot is yours", 5),
+    pages.Section("Questions", "the rest of the slot is yours", 4),
 ]
 SLOT_MINUTES = 20
 OPENING_MINUTES = 1        # title, team and agenda -- spoken, not listed
@@ -453,6 +453,45 @@ def slide_progress(prs):
     animate(slide, [s.shape_id for s in figs] + [s.shape_id for s in cards if s.has_text_frame])
 
 
+def slide_knowledge(prs):
+    """PROGRESS — the knowledge base, on its own slide because it earned one.
+
+    Every figure is measured: 8/8 vs 6/8 and 0/40 by `agentorg.retrieval.measure`, 18
+    documents on the saved state of run #75 (36116159979) -- the first deployed run
+    with RETRIEVAL_ENABLED on, 2026-09-25. Before that it was wired and switched off.
+    """
+    slide = new_slide(prs)
+    heading(slide, "What the agents read before they answer",
+            kicker="progress · knowledge base", size=30)
+    figs = figure(slide, "8/8", "plan mismatches caught\nwith it — 6/8 without",
+                  left=MARGIN, top=Inches(2.35), width=Inches(3.4), color=CYAN)
+    figs += figure(slide, "0/40", "false blocks, with it\nor without it",
+                   left=Inches(4.8), top=Inches(2.35), width=Inches(3.4), color=CYAN)
+    figs += figure(slide, "18", "documents read on one\nlive run, in production",
+                   left=Inches(8.4), top=Inches(2.35), width=Inches(3.4), color=CYAN)
+    cards = _rowcards(slide, [
+        ("Past rejections",
+         "Why earlier changes to this app were sent back, so the developer does not "
+         "repeat a mistake."),
+        ("Team conventions",
+         "Questions the team has already settled, so the reviewer stops arguing them "
+         "again."),
+        ("Security advisories",
+         "Background on known vulnerabilities, so the security explanation is "
+         "specific."),
+    ], top=Inches(4.35), height=Inches(1.8))
+    caveat = textbox(slide,
+                     "Four agents read it: planner, developer, reviewer and the security "
+                     "explanation. Keyword search, no vector database. It shapes wording, "
+                     "never the verdict: five hostile documents were planted, and the block "
+                     "did not move.",
+                     left=MARGIN, top=Inches(6.3), width=Inches(11.0), height=Inches(0.75),
+                     size=13, color=DIM, spacing=1.25)
+    transition(slide)
+    animate(slide, [s.shape_id for s in figs] + [s.shape_id for s in cards if s.has_text_frame]
+            + [caveat.shape_id])
+
+
 def slide_notes(prs):
     """PROGRESS — the pre-final feedback, answered, row for row."""
     slide = new_slide(prs)
@@ -595,7 +634,7 @@ SLIDES = [
     slide_architecture,
     slide_impact,
     slide_differentiation, slide_failopen,
-    slide_progress, slide_notes, slide_limits,
+    slide_progress, slide_knowledge, slide_notes, slide_limits,
     slide_roadmap,
     slide_demo, slide_close,
 ]

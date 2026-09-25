@@ -13,7 +13,7 @@ explains, and the deck opens with a speaker page and an agenda (see below).
 
 | File | What it is |
 |---|---|
-| `TheAgentOrg-Final.pptx` | the deck — 17 slides |
+| `TheAgentOrg-Final.pptx` | the deck — 18 slides |
 | `../architecture/` | the AWS diagram: `make_architecture.py` writes `architecture.drawio` and renders `architecture.png` |
 | `REHEARSAL.md` | the speaking script, timings and prepared answers. Private |
 | `DEMO-PLAN.md` | what the live demonstration shows. Suitable for organisers |
@@ -24,9 +24,9 @@ explains, and the deck opens with a speaker page and an agenda (see below).
 Twenty minutes covers the presentation, the demo AND the judges' questions.
 
 ```
-slides     10:20    verified by the script in REHEARSAL.md
+slides     10:50    verified by the script in REHEARSAL.md
 live demo   5:00    the poisoned run only
-questions   4:40
+questions   4:10
 ```
 
 Both runs live would be about ten minutes — measured, not estimated — so the clean
@@ -48,7 +48,7 @@ the agenda omits a required section, or if its minutes do not fill the slot.
 ## The former backup slides are in the main flow
 
 Scoring is slide 7, straight after the gate it explains; the judges asked for it by
-name. The limits are slide 14, before the roadmap. That cost 0:50 of question time.
+name. The limits are slide 15, before the roadmap. That cost 0:50 of question time.
 
 ## The architecture diagram
 
