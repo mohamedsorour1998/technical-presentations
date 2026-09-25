@@ -88,8 +88,9 @@ def diagram() -> drawio.Diagram:
     d.icon("oidc", "identity_and_access_management", 560, 520, "IAM role via OIDC",
            "no static keys", AWS["security"])
     d.icon("agentcore", "bedrock_agentcore", 800, 520, "Bedrock AgentCore",
-           "planner · developer · reviewer · security · sre", AWS["ai"], label_above=True)
-    d.icon("nova", "nova2", 1040, 520, "Amazon Nova 2 Lite", "Bedrock · US cross-region", AWS["ai"])
+           "five runtimes, one per agent", AWS["ai"], label_above=True)
+    d.icon("nova", "nova2", 1040, 520, "Amazon Nova 2 Lite", "Bedrock · US cross-region", AWS["ai"],
+           label_above=True)
     d.icon("secrets", "secrets_manager", 1340, 520, "Secrets Manager",
            "webhook secret · tokens", AWS["security"])
     d.icon("ecr", "ecr", 560, 670, "Amazon ECR", "one arm64 image", AWS["containers"])
@@ -116,8 +117,15 @@ def diagram() -> drawio.Diagram:
     d.edge("e4", "actions", "oidc", "assume role", style="exitX=1;exitY=0.69;")
     d.edge("e4b", "oidc", "agentcore", "invoke")
     d.edge("e5", "agentcore", "nova", "prompt")
-    d.edge("e6", "agentcore", "rule", "security stage",
-           style="exitX=0.5;exitY=1;entryX=0.2667;entryY=0;")
+    # THE FIVE AGENTS, EACH ITS OWN BOX. Asked of the version that listed them as one
+    # line of text: "why do I see only the security stage, not all?" Security is
+    # outlined in the accent colour because it is the one that decides, and it is
+    # the only box with an arrow down to the rule.
+    for i, name in enumerate(["planner", "developer", "reviewer", "security", "sre"]):
+        d.box(f"agent_{name}", 700 + i * 110, 598, 100, 32, name,
+              stroke=t.accent if name == "security" else None, size=14)
+    d.edge("e6", "agent_security", "rule",
+           style="exitX=0.5;exitY=1;entryX=0.6833;entryY=0;")
 
     # ── the product ──
     d.edge("signin", "eng", "cognito", "sign in",
@@ -130,7 +138,7 @@ def diagram() -> drawio.Diagram:
            style="exitX=0.5;exitY=1;entryX=1;entryY=0.1429;", at=0.2)
 
     for n, (x, y) in enumerate([(535, 17), (478, 404), (662, 438), (476, 512),
-                                (985, 520), (738, 606), (40, 428), (1478, 150)], start=1):
+                                (985, 556), (1096, 634), (40, 428), (1478, 150)], start=1):
         d.badge(n, x, y)
     return d
 
