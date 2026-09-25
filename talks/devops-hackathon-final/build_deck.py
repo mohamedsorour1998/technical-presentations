@@ -7,10 +7,12 @@ Content only -- the engine is deckkit/deck.py.
 
 THE CLOCK IS THE DESIGN CONSTRAINT. Twenty minutes covers the presentation, the
 demo AND the judges' questions; the pre-final was thirty for the same three. So
-this is seventeen slides in 10:20, a five-minute live demo of the poisoned run
-only, and 4:40 left for questions (pitch/REHEARSAL.md carries the per-slide sum). Measured: the poisoned run
-is 2m19s from approving gate1 to the block (run 35679536930) and a clean run with
-three approvals is about six minutes -- both live would be half the slot.
+this is seventeen slides in 10:20, a five-minute live demo of ONE blocked run, and
+4:40 left for questions (pitch/REHEARSAL.md carries the per-slide sum). The demo ticket
+is a REAL one, not the poisoned checkbox: it pins requests==2.19.0, and Trivy blocks it
+on CVE-2018-18074 -- 81 s from approving gate1 to the block, rehearsed on run #73
+(36096705514, 2026-09-25) with no demo flag set. A clean run with three approvals is
+about six minutes -- both live would be half the slot.
 
 THE BRIEF NAMES SIX SECTIONS and `_REQUIRED` asserts every one is present, so a
 rewrite cannot silently drop one. Two of them -- BUSINESS IMPACT and
@@ -107,8 +109,9 @@ TOTAL_MODULES = 83
 REAL_LINES = "3, 4"
 FIXTURE_LINES = "4, 5"
 
-# The live poisoned run, 2026-09-22 — run 35679536930
-BLOCK_SECONDS = "2 min 19 s"
+# The demo ticket, rehearsed live 2026-09-25 on run #73 (36096705514), no demo flag:
+# gate1 approved -> develop blocked, from GitHub's job timestamps.
+BLOCK_SECONDS = "81 s"
 
 _REQUIRED = (
     "OVERVIEW", "BUSINESS IMPACT", "DIFFERENTIATION",
@@ -144,7 +147,7 @@ AGENDA = [
     pages.Section("Differentiation", "what vendors say about their own AI review", 1),
     pages.Section("Progress", "what is built, your ten notes, and what it does not do", 2),
     pages.Section("Future work", "what is next", 1),
-    pages.Section("Live demonstration", "a ticket that carries a credential, refused", 5),
+    pages.Section("Live demonstration", "a ticket that pins a vulnerable library, refused", 5),
     pages.Section("Questions", "the rest of the slot is yours", 5),
 ]
 SLOT_MINUTES = 20
@@ -501,14 +504,14 @@ def slide_demo(prs):
     rule(slide, top=Inches(3.1), width=Inches(2.2), color=CYAN)
     marks = _spine(slide, top=Inches(3.7), stopped_after=4)
     textbox(slide,
-            "A ticket that deliberately carries a credential. The scanners find it, the "
-            "run stops at the security stage, and nothing after it runs.",
+            "A real ticket: pin an old version of a library for a legacy system. Nothing is "
+            "planted and no demo flag is set. Trivy finds a known vulnerability, the run "
+            "stops at the security stage, and nothing after it runs.",
             left=MARGIN, top=Inches(4.6), width=Inches(11.0), height=Inches(0.8),
             size=17, color=DIM, spacing=1.3)
     textbox(slide,
-            f"Watch the line numbers: the real scanners report lines {REAL_LINES.replace(', ', ' and ')}. "
-            f"The built-in stand-in, used only when a scanner is unavailable, reports "
-            f"{FIXTURE_LINES.replace(', ', ' and ')}, so the pair shows a real scan happened.",
+            "Watch the threshold: the high-severity finding stops the run, and the medium "
+            "ones do not. The same comparison, per scanner, is on the screen.",
             left=MARGIN, top=Inches(5.6), width=Inches(11.0), height=Inches(0.8),
             size=15, color=INK, spacing=1.3)
     transition(slide, kind="fade")
