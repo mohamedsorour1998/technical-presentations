@@ -112,9 +112,15 @@ def diagram() -> drawio.Diagram:
            style="exitX=1;exitY=0.5;entryX=0;entryY=0.5;", at=0.61)
     d.edge("e2b", "lambda", "eb", "PutEvents")
     d.edge("dlq", "eb", "sqs", "on failure", dashed=True)
-    d.edge("e3", "eb", "actions", "workflow_dispatch", points=[(860, 452)],
-           style="exitX=0.5;exitY=1;entryX=1;entryY=0.49;", at=0.3)
-    d.edge("e4", "actions", "oidc", "assume role", style="exitX=1;exitY=0.69;")
+    # INTO `plan`, where every run starts. It used to end on the area's edge level
+    # with gate2, which read as "the dispatch starts gate2" -- asked on the finals eve:
+    # "are 1, 2 and 3 flowing in and out correctly?"
+    d.edge("e3", "eb", "job_plan", "workflow_dispatch", points=[(860, 452), (460, 452), (460, 263)],
+           style="exitX=0.5;exitY=1;entryX=1;entryY=0.3;", at=-0.1)
+    # FROM THE GAP BETWEEN JOBS, NOT FROM A GATE. It left level with gate3 -- one of the
+    # three jobs that deliberately hold NO AWS role. The agent jobs assume it.
+    d.edge("e4", "actions", "oidc", "assume role", points=[(470, 523), (470, 550)],
+           style="exitX=1;exitY=0.635;entryX=0;entryY=0.5;")
     d.edge("e4b", "oidc", "agentcore", "invoke")
     d.edge("e5", "agentcore", "nova", "prompt")
     # THE FIVE AGENTS, EACH ITS OWN BOX. Asked of the version that listed them as one
