@@ -205,6 +205,12 @@ verify(out, SLIDES, ..., extra=[pages.opening_check(
   order), when the agenda omits a required section, or when `opening_minutes` plus the
   rows' minutes do not equal the slot. It finds the pages by slide-function name,
   `slide_team` and `slide_agenda` by default; pass `speaker=`/`agenda=` otherwise.
+- **It checks the sum, not the attribution.** Move a slide from one section to another and
+  the total is unchanged, so the check stays green while the agenda quietly promises the
+  wrong minutes for both sections. Moving a slide between sections means moving its
+  minutes by hand, in the same edit — nothing will tell you. One deck moved a slide from
+  Progress into Overview and rebalanced 3→4 and 3→2 correctly; had it not, the build
+  would still have passed.
 
 **Prove it by breaking it**, all three ways: move the speaker page to the end, drop a
 required section from the agenda, overfill the minutes. Each must print its `FAIL`.
