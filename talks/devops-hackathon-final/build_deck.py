@@ -73,12 +73,12 @@ LINE, INK, DIM = deck.LINE, deck.INK, deck.DIM
 CYAN, MINT, ROSE = deck.CYAN, deck.MINT, deck.ROSE
 
 # ── figures — each with the command that produced it, re-run 2026-09-22 ───────
-PY_TESTS = 2172          # .venv-main/bin/python -m pytest --collect-only -q | tail -1   (2026-09-24)
+PY_TESTS = 2172          # .venv-main/bin/python -m pytest --collect-only -q | tail -1   (2026-09-25)
 PY_FILES = 93            # ls tests/test_*.py | wc -l
-WEB_TESTS = 311          # cd web && npx vitest run   -> Tests 311 passed
-WEB_FILES = 24           # ls web/{__tests__,lib/__tests__,components/__tests__}/*.ts | wc -l
+WEB_TESTS = 334          # cd web && npm test   -> Tests 334 passed   (2026-09-25)
+WEB_FILES = 26           # ls web/{__tests__,lib/__tests__,components/__tests__}/*.ts | wc -l   (2026-09-25)
 WORKFLOWS = 5            # ls .github/workflows/*.yml | wc -l
-RUNTIME_VERSION = 54     # scripts/preflight.py check 2   (2026-09-24, all five READY)
+RUNTIME_VERSION = 54     # list-agent-runtimes: all five READY at 54   (2026-09-25)
 
 # docs/final/evidence/cost-comparison.md, three consecutive clean runs:
 # $0.013036 and $0.016931. Shown in CENTS -- "$0.013–0.017" at 40pt wrapped onto its
@@ -89,13 +89,14 @@ COST_HIGH = "0.017"
 COST_MEDIAN = "0.0131"   # $0.013102
 INFRA_SHARE = "99.9"     # model share of marginal cost; infra was $0.0000125
 
-# docs/final/evidence/merge-history.json, computed 2026-09-22
-MERGE_MEDIAN_MIN = "5.39"   # median of 8 ticket->merge times
-MERGE_MAX_MIN = "27.07"
-MERGES = 8
-PIPELINE_RUNS = 37          # survivorship: 8 merges OF 37 runs. Stated on the slide.
-ESCAPES = 0                 # credential escapes over the 8 merged PRs
-CONTROL_PR = 50             # the unmerged PR the same scan finds 3 in
+# TheAgentOrg: scripts/measure_merge_history.py --refresh   (2026-09-25; was 8 of 37,
+# 5.39 min and PR #50 on 2026-09-09 -- later runs waited on people, so the median rose)
+MERGE_MEDIAN_MIN = "7.88"   # median of 12 ticket->merge times
+MERGE_MAX_MIN = "2476.08"   # PR #58: its gates were clicked the next day
+MERGES = 12
+PIPELINE_RUNS = 57          # survivorship: 12 merges OF 57 runs. Stated on the slide.
+ESCAPES = 0                 # credential escapes: 0 over 13 merged PRs, 12 of them the pipeline's
+CONTROL_PR = 72             # the unmerged PR the same scan finds 3 in
 
 # TheAgentOrg: .venv-main/bin/python scripts/measure_dependencies.py   (deabeef, 2026-09-24)
 VENDOR_TOUCHING = 8      # modules touching a vendor SDK
@@ -320,7 +321,7 @@ def slide_gate(prs):
            ["what it catches", "intent, logic, a plan mismatch", "credentials, known CVEs, unsafe code"],
            ["its authority", "advisory: it sends the change back", "binding: it stops the run"],
            ["same input twice", "may answer differently", "the same answer, always"],
-           ["can be talked out of it", "yes, it reads a prompt", "no, there is no model in it"]],
+           ["can be talked out of it", "yes, it reads a prompt", "no, no model takes part in the decision"]],
           top=Inches(3.2), left=MARGIN, height=0.5,
           widths=[Inches(2.7), Inches(4.2), Inches(4.2)], size=15, mono=False)
     note = textbox(slide,
@@ -372,8 +373,10 @@ def slide_differentiation(prs):
     heading(slide, "Every vendor's AI review is advisory. They say so.",
             kicker="differentiation", size=28)
     table(slide, ["product", "from their own documentation"],
-          [["GitHub Copilot review", "“will not block merging changes”"],
-           ["Anthropic Code Review", "“always completes with a neutral conclusion so it never blocks”"],
+          # RE-READ 2026-09-25: GitHub rewrote this page. "will not block merging changes"
+          # is gone, and approvals are now an opt-in -- so the row quotes what is there.
+          [["GitHub Copilot review", "by default “a ‘Comment’ review, not … a ‘Request changes’ review”"],
+           ["Anthropic Code Review", "“always completes with a neutral conclusion so it never blocks merging”"],
            ["OpenAI Codex", "“don't replace tests, branch protections, or required approvals”"],
            ["Cursor Bugbot", "findings “default to neutral”"],
            ["Snyk", "“The generator cannot be the validator.”"]],
@@ -400,13 +403,18 @@ def slide_failopen(prs):
         ("Cursor hooks",
          "If a hook itself fails, the action goes ahead. Their documentation calls it "
          "“fail-open by default”."),
+        # VERBATIM, re-read 2026-09-25. The card used to put a paraphrase in quote
+        # marks; the documentation's sentence is longer and is the one quoted now.
         ("Claude Code hooks",
-         "Only one specific failure blocks; any other lets the action through, and "
-         "“a mistyped path silently disables the gate”."),
+         "Only one specific failure blocks; any other lets the action through. Their "
+         "documentation: “a mistyped path in settings.json leaves the gate silently "
+         "disabled”."),
+        # "By default": `semgrep ci` passes on internal errors unless run with
+        # --no-suppress-errors. Their words: it "returns exit code 0".
         ("Semgrep",
-         "If the scanner crashes, it reports success. A crash looks exactly like a "
-         "clean scan."),
-    ], top=Inches(2.45), height=Inches(2.2), size=14)
+         "By default, if the scanner crashes it still reports success, so a crash "
+         "reads like a clean scan."),
+    ], top=Inches(2.45), height=Inches(2.55), size=14)   # 2.2 -- the verbatim quote ran past the card
     note = textbox(slide,
                    "A check that did not run, reading as a check that passed. That is the "
                    "failure this project is built to refuse: in our pipeline a missing or "
@@ -450,7 +458,7 @@ def slide_notes(prs):
           [["Evaluation criteria", "measured before and after: plan-mismatch catches went 6/8 → 8/8"],
            ["Time and cost vs a coding agent", f"{COST_CENTS} of model time per change, priced from the AWS Pricing API"],
            ["External dependency", f"{VENDOR_TOUCHING} of {TOTAL_MODULES} modules touch a vendor SDK; {VENDOR_MODULES} load one at start-up"],
-           ["Self-hosted", "one compose file runs the database, the API and the web app"],
+           ["Self-hosted", "one compose file runs the web app, the API, the worker and a local model"],
            ["Competitive advantage", "commissioned research, which disproved five of our own claims"],
            ["Scanner scoring → go / no-go", "one scoring table for all three scanners, built because of this note"],
            ["Generated tests + Selenium", "an agent writes tests from the ticket; Selenium runs in CI"],

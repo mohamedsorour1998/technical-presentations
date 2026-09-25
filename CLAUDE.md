@@ -960,10 +960,12 @@ tools). The first run may ask to let the terminal control PowerPoint; allow it.
 | Look for | Found as |
 |---|---|
 | a line through text | the heading rule striking through body text and table headers |
+| text past its card | a verbatim quote, longer than the paraphrase it replaced, ran out of a card; the estimate compares text boxes with each other, not text with the card drawn behind it |
 | text on text | a two-line name over a title; a price wrapped onto its label |
 | a colour with no stated meaning | cyan agenda rows, a cyan table row, cyan paragraphs, mint and rose bands |
 | notation the room cannot read | "exit 2 denies", "[NEXT]", "fixture" |
 | a claim that no longer holds | a stale count; a "miss rate" that was a catch rate; a garbled "99.9% of nothing" |
+| a quote the source no longer says | a vendor rewrote its page between two rehearsals; fetch each quote raw and grep it, because a search summary paraphrases and a summariser will also report a sentence as missing when it is only past the first matches |
 | a stray fragment | a "·" separator left alone at the start of a wrapped line |
 | uneven rhythm | bullets spaced for two lines where one item had one |
 
