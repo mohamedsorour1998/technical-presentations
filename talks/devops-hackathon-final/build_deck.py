@@ -141,11 +141,11 @@ TEAM = [
 # The agenda. Minutes are pitch/REHEARSAL.md's timings rounded, and they must
 # sum to the slot: 20 minutes including the demo and the judges' questions.
 AGENDA = [
-    pages.Section("Overview", "the problem, the pipeline, and why the gate is not a model", 3),
+    pages.Section("Overview", "the problem, the pipeline, the gate, and what the agents read", 4),
     pages.Section("Architecture", "what runs where, on AWS and on GitHub", 1),
     pages.Section("Business impact", "what a change costs, and what it buys", 1),
     pages.Section("Differentiation", "what vendors say about their own AI review", 1),
-    pages.Section("Progress", "what is built, the knowledge base, your ten notes, the limits", 3),
+    pages.Section("Progress", "what is built, your ten notes, and what it does not do", 2),
     pages.Section("Future work", "what is next", 1),
     pages.Section("Live demonstration", "a ticket that pins a vulnerable library, refused", 5),
     pages.Section("Questions", "the rest of the slot is yours", 4),
@@ -454,7 +454,8 @@ def slide_progress(prs):
 
 
 def slide_knowledge(prs):
-    """PROGRESS — the knowledge base, on its own slide because it earned one.
+    """OVERVIEW — the knowledge base, closing the section: what the agents read, and that
+    it never reaches the rule the two slides before it explained.
 
     Every figure is measured: 8/8 vs 6/8 and 0/40 by `agentorg.retrieval.measure`, 18
     documents on the saved state of run #75 (36116159979) -- the first deployed run
@@ -462,7 +463,7 @@ def slide_knowledge(prs):
     """
     slide = new_slide(prs)
     heading(slide, "What the agents read before they answer",
-            kicker="progress · knowledge base", size=30)
+            kicker="overview · knowledge base", size=30)
     figs = figure(slide, "8/8", "plan mismatches caught\nwith it — 6/8 without",
                   left=MARGIN, top=Inches(2.35), width=Inches(3.4), color=CYAN)
     figs += figure(slide, "0/40", "false blocks, with it\nor without it",
@@ -630,11 +631,11 @@ def slide_limits(prs):
 
 SLIDES = [
     slide_title, slide_team, slide_agenda,
-    slide_problem, slide_solution, slide_gate, slide_scoring,
+    slide_problem, slide_solution, slide_gate, slide_scoring, slide_knowledge,
     slide_architecture,
     slide_impact,
     slide_differentiation, slide_failopen,
-    slide_progress, slide_knowledge, slide_notes, slide_limits,
+    slide_progress, slide_notes, slide_limits,
     slide_roadmap,
     slide_demo, slide_close,
 ]
