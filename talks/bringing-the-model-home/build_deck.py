@@ -176,8 +176,10 @@ def slide_speaker(prs):
     slide = new_slide(prs)
     heading(slide, "Mohamed Sorour", kicker="speaker", size=40)
 
-    photo = (pathlib.Path(__file__).resolve().parent.parent
-             / "pitch" / "photos" / "square" / "sorour.jpg")
+    # ROOT, not a path rebuilt from __file__. This read `.parent.parent` and survived the
+    # move into talks/<name>/, where it resolved to talks/ -- so the portrait was silently
+    # missing and the slide degraded to initials, which looks like a deliberate choice.
+    photo = ROOT / "pitch" / "photos" / "square" / "sorour.jpg"
     diameter = Inches(2.5)
     x = Inches(9.3)
     y = Inches(2.5)
