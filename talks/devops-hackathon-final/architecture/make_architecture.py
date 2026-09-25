@@ -83,20 +83,26 @@ def diagram() -> drawio.Diagram:
     d.icon("sqs", "sqs", 1060, 365, "Amazon SQS", "dead-letter queue",
            AWS["integration"], label_above=True)
     d.icon("ddb", "dynamodb", 1340, 365, "Amazon DynamoDB",
-           "run index · every stage writes it", AWS["database"], label_above=True)
+           "run index · the pipeline writes it", AWS["database"], label_above=True)
 
     d.icon("oidc", "identity_and_access_management", 560, 520, "IAM role via OIDC",
            "no static keys", AWS["security"])
     d.icon("agentcore", "bedrock_agentcore", 800, 520, "Bedrock AgentCore",
-           "5 runtimes · one per agent", AWS["ai"], label_above=True)
-    d.icon("nova", "nova2", 1040, 520, "Amazon Nova 2 Lite", "via Amazon Bedrock", AWS["ai"])
+           "planner · developer · reviewer · security · sre", AWS["ai"], label_above=True)
+    d.icon("nova", "nova2", 1040, 520, "Amazon Nova 2 Lite", "Bedrock · US cross-region", AWS["ai"])
     d.icon("secrets", "secrets_manager", 1340, 520, "Secrets Manager",
            "webhook secret · tokens", AWS["security"])
     d.icon("ecr", "ecr", 560, 670, "Amazon ECR", "one arm64 image", AWS["containers"])
     d.icon("cw", "cloudwatch_2", 1340, 670, "Amazon CloudWatch", "logs", AWS["management"])
-    d.hexagon("rule", 690, 660, 480, 92,
-              "<b>security runtime</b><br>gitleaks · Trivy · Semgrep → fixed threshold"
-              "<br>pass or block — <b>no model</b>")
+    # THE MODEL IS IN THE SECURITY RUNTIME, AND THE HEXAGON SAYS WHAT FOR. Asked of
+    # the first version, which read "pass or block — no model" beside an arrow into
+    # Nova: "I see an AI model, yet you say the security gate uses none?" Both were
+    # true -- `security.run` decides with `compute_security_verdict`, THEN asks the
+    # model for the explanation -- and the picture showed only the first half.
+    d.hexagon("rule", 670, 660, 600, 92,
+              "<b>security runtime</b>: gitleaks · Trivy · Semgrep → fixed threshold"
+              "<br>pass or block is decided with <b>no model</b>"
+              "<br>the model only writes the explanation, afterwards")
 
     # ── the request's path, numbered the way AWS reference architectures do ──
     d.edge("e1", "eng", "issue", "open an issue", points=[(230, 31)],
@@ -111,7 +117,7 @@ def diagram() -> drawio.Diagram:
     d.edge("e4b", "oidc", "agentcore", "invoke")
     d.edge("e5", "agentcore", "nova", "prompt")
     d.edge("e6", "agentcore", "rule", "security stage",
-           style="exitX=0.5;exitY=1;entryX=0.2917;entryY=0;")
+           style="exitX=0.5;exitY=1;entryX=0.2667;entryY=0;")
 
     # ── the product ──
     d.edge("signin", "eng", "cognito", "sign in",
