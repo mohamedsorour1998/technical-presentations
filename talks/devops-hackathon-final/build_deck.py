@@ -73,12 +73,12 @@ LINE, INK, DIM = deck.LINE, deck.INK, deck.DIM
 CYAN, MINT, ROSE = deck.CYAN, deck.MINT, deck.ROSE
 
 # ── figures — each with the command that produced it, re-run 2026-09-22 ───────
-PY_TESTS = 2172          # .venv-main/bin/python -m pytest --collect-only -q | tail -1   (2026-09-25)
-PY_FILES = 93            # ls tests/test_*.py | wc -l
-WEB_TESTS = 334          # cd web && npm test   -> Tests 334 passed   (2026-09-25)
+PY_TESTS = 2176          # .venv-main/bin/python -m pytest --collect-only -q | tail -1   (2026-09-25, after 08a24c6)
+PY_FILES = 95            # ls tests/test_*.py | wc -l   (2026-09-25)
+WEB_TESTS = 338          # cd web && npm test   -> Tests 338 passed   (2026-09-25, after bf3a962)
 WEB_FILES = 26           # ls web/{__tests__,lib/__tests__,components/__tests__}/*.ts | wc -l   (2026-09-25)
 WORKFLOWS = 5            # ls .github/workflows/*.yml | wc -l
-RUNTIME_VERSION = 54     # list-agent-runtimes: all five READY at 54   (2026-09-25)
+RUNTIME_VERSION = 55     # list-agent-runtimes: all five READY at 55; preflight OK, LINES [3, 4]   (2026-09-25, after 08a24c6)
 
 # docs/final/evidence/cost-comparison.md, three consecutive clean runs:
 # $0.013036 and $0.016931. Shown in CENTS -- "$0.013–0.017" at 40pt wrapped onto its
